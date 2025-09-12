@@ -41,7 +41,6 @@ export default function SubmissionTable() {
         { field: 'learner', width: 100, resizable: false, flex: 0 },
         { field: 'submitted', valueFormatter: (param) => moment(param.value).fromNow() },
         { field: 'status', width: 100, resizable: false, flex: 0 },
-        { field: 'deadline', resizable: false },
         { field: 'action', width: 150, resizable: false, flex: 0, cellStyle: { color: "#0084d1", cursor: "pointer" }, sortable: false },
         { field: 'moduleId', hide: true },
         { field: 'courseId', hide: true },
