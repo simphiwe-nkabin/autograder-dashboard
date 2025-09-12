@@ -4,7 +4,7 @@ import logo from '../assets/shaper-logo.png'
 
 export default function Header() {
 
-    const { isAuthenticated, isLoading, loginWithRedirect, user, logout } = useAuth0()
+    const { isAuthenticated, loginWithRedirect, user, logout } = useAuth0()
 
     return (
         <header>

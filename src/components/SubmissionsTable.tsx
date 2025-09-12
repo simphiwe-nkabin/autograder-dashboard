@@ -24,14 +24,12 @@ type RowItemType = {
 export default function SubmissionTable() {
     const [rowData, setRowData] = useState<RowItemType[]>([])
     const [loading, setLoading] = useState<Boolean>(false)
-    const [error, setError] = useState<any>()
 
     const [searchParams, setSearchParams] = useSearchParams()
 
     // Courses data, loading, error
     const [courses, setCourses] = useState<CourseType[]>([])
     const [coursesLoading, setCoursesLoading] = useState<boolean>(false)
-    const [coursesError, setCoursesError] = useState<any>()
 
 
     const [colDefs] = useState<ColDef[]>([
@@ -56,7 +54,7 @@ export default function SubmissionTable() {
         try {
             setLoading(true)
             moodleService.getSubmissions().then((data: SubmissionType[]) => {
-                const submissions: RowItemType[] = data.filter(sub => sub.gradingStatus !== 'graded' && sub.status == 'submitted').map((submission, index) => ({
+                const submissions: RowItemType[] = data.filter(sub => sub.gradingStatus !== 'graded' && sub.status == 'submitted').map((submission) => ({
                     course: submission.courseName,
                     assignment: submission.assignmentName,
                     learner: submission.userId,
@@ -71,7 +69,6 @@ export default function SubmissionTable() {
                 setLoading(false)
             })
         } catch (error) {
-            setError(error)
             setLoading(false)
         }
 
@@ -80,7 +77,7 @@ export default function SubmissionTable() {
             setCoursesLoading(true)
             moodleService.getCourses().then(data => setCourses(data))
         } catch (error) {
-            setCoursesError(error)
+            console.log(error)
         } finally {
             setCoursesLoading(false)
         }
