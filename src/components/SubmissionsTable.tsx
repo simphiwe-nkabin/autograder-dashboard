@@ -56,6 +56,37 @@ export default function SubmissionTable() {
 
     const defaultColDef = { flex: 1 };
 
+    async function fetchData() {
+        // submissions
+        setLoading(true)
+        try {
+            const submissions = await moodleService.getSubmissions()
+            const blockedSubmissions = await storageService.getAllBlockedSubmissions()
+            const submissionRows: RowItemType[] = submissions.filter(sub => sub.gradingStatus !== 'graded' && sub.status == 'submitted').map((submission) => {
+                const blockedSubmission = blockedSubmissions.find((item => item.submission_id == submission.id))
+                return {
+                    submissionId: submission.id,
+                    course: submission.courseName,
+                    assignment: submission.assignmentName,
+                    learner: submission.userId,
+                    submitted: new Date(submission.submittedAt),
+                    status: submission.status,
+                    blocked: !!blockedSubmission?.id,
+                    comment: blockedSubmission?.comment || "",
+                    action: 'Grade',
+                    moduleId: submission.coursModuleId,
+                    courseId: submission.courseId,
+                    learnerId: submission.userId
+                }
+            })
+            setRowData(submissionRows)
+            setLoading(false)
+        } catch (error) {
+            console.log(error);
+            setLoading(false)
+        }
+    }
+
     useEffect(() => {
         // courses
         setCoursesLoading(true)
@@ -68,52 +99,31 @@ export default function SubmissionTable() {
                 console.log(err);
                 setCoursesLoading(false)
             })
-
-        async function fetchData() {
-            // submissions
-            setLoading(true)
-            try {
-                const submissions = await moodleService.getSubmissions()
-                const blockedSubmissions = await storageService.getAllBlockedSubmissions()
-                const submissionRows: RowItemType[] = submissions.filter(sub => sub.gradingStatus !== 'graded' && sub.status == 'submitted').map((submission) => {
-                    const blockedSubmission = blockedSubmissions.find((item => item.submission_id == submission.id))
-                    return {
-                        submissionId: submission.id,
-                        course: submission.courseName,
-                        assignment: submission.assignmentName,
-                        learner: submission.userId,
-                        submitted: new Date(submission.submittedAt),
-                        status: submission.status,
-                        blocked: !!blockedSubmission?.id,
-                        comment: blockedSubmission?.comment || "",
-                        action: 'Grade',
-                        moduleId: submission.coursModuleId,
-                        courseId: submission.courseId,
-                        learnerId: submission.userId
-                    }
-                })
-                setRowData(submissionRows)
-                setLoading(false)
-            } catch (error) {
-                console.log(error);
-                setLoading(false)
-            }
-        }
         fetchData()
     }, [])
 
     return (
         <div>
-            <div className="max-w-sm mb-5">
-                <p className="mb-1 block">Select a Course</p>
-                <Select name="course"
-                    onSelect={(value) => setSearchParams((searchParams) => {
-                        searchParams.set("course", value);
-                        return searchParams;
-                    })}
-                    loading={coursesLoading}
-                    options={courses ? [{ label: 'All courses', id: 0, value: 0 }, ...courses.map((c: CourseType) => ({ label: c.name, id: c.id, value: c.id }))] : []} />
+            <div className="flex justify-between items-center">
+                <div className="max-w-sm mb-5">
+                    <p className="mb-1 block">Select a Course</p>
+                    <Select name="course"
+                        onSelect={(value) => setSearchParams((searchParams) => {
+                            searchParams.set("course", value);
+                            return searchParams;
+                        })}
+                        loading={coursesLoading}
+                        options={courses ? [{ label: 'All courses', id: 0, value: 0 }, ...courses.map((c: CourseType) => ({ label: c.name, id: c.id, value: c.id }))] : []} />
+                </div>
+                <button disabled={!!loading} onClick={() => fetchData()} title="refresh submission data" className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white flex items-center gap-2 hover:bg-gray-700 active:border-blue-400 disabled:opacity-50 disabled:border-none">
+                    Refresh
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+                    </svg>
+                </button>
             </div>
+
             <div style={{ width: "100%", height: 500 }}>
                 {loading &&
                     <div className="text-center">
