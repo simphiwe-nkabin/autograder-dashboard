@@ -63,22 +63,22 @@ async function getSubmissions(): Promise<SubmissionType[]> {
         }
 
         const submissionsResult: MoodleSubmissionType = await response.json();
-        const moodleSubissions = submissionsResult.assignments[0].submissions
-        for (let j = 0; j < moodleSubissions.length; j++) {
+        const moodleSubmissions = submissionsResult.assignments[0].submissions
+        for (let j = 0; j < moodleSubmissions.length; j++) {
 
-            const moodleSubission = moodleSubissions[j];
+            const moodleSubmission = moodleSubmissions[j];
             submissions.push({
                 courseId: assigment.courseId,
                 courseName: assigment.courseName,
                 coursModuleId: assigment.coursModuleId,
                 assignmentId: assigment.id,
                 assignmentName: assigment.name,
-                id: moodleSubission.id,
-                userId: moodleSubission.userid,
-                attemptNumber: moodleSubission.attemptnumber,
-                submittedAt: moodleSubission.timecreated * 1000,
-                status: moodleSubission.status,
-                gradingStatus: moodleSubission.gradingstatus
+                id: moodleSubmission.id,
+                userId: moodleSubmission.userid,
+                attemptNumber: moodleSubmission.attemptnumber,
+                submittedAt: moodleSubmission.timecreated * 1000,
+                status: moodleSubmission.status,
+                gradingStatus: moodleSubmission.gradingstatus
             })
         }
     }
