@@ -1,7 +1,7 @@
 type BlockedSubmission = {
     id: number,
     submission_id: number,
-    comment: number,
+    comment: string,
     created_at: number
 }
 
