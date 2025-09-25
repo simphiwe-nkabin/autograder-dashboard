@@ -123,4 +123,87 @@ type MoodleSubmissionType = {
     ]
 }
 
-export type { MoodleCourseType, MoodleAssignmentType, MoodleSubmissionType }
+type MoodleQuizType = {
+    id: number,
+    coursemodule: number,
+    course: number,
+    name: string,
+    intro: string,
+    introformat: number,
+    introfiles: [],
+    section: number,
+    visible: true,
+    groupmode: number,
+    groupingid: number,
+    lang: string,
+    timeopen: number,
+    timeclose: number,
+    timelimit: number,
+    overduehandling: string,
+    graceperiod: number,
+    preferredbehaviour: string,
+    canredoquestions: number,
+    attempts: number,
+    attemptonlast: number,
+    grademethod: number,
+    decimalpoints: number,
+    questiondecimalpoints: number,
+    reviewattempt: number,
+    reviewcorrectness: number,
+    reviewmaxmarks: number,
+    reviewmarks: number,
+    reviewspecificfeedback: number,
+    reviewgeneralfeedback: number,
+    reviewrightanswer: number,
+    reviewoverallfeedback: number,
+    questionsperpage: number,
+    navmethod: string,
+    shuffleanswers: number,
+    sumgrades: number,
+    grade: number,
+    timecreated: number,
+    timemodified: number,
+    password: string,
+    subnet: string,
+    browsersecurity: string,
+    delay1: number,
+    delay2: number,
+    showuserpicture: number,
+    showblocks: number,
+    completionattemptsexhausted: number,
+    completionpass: number,
+    allowofflineattempts: number,
+    autosaveperiod: number,
+    hasfeedback: number,
+    hasquestions: number
+}
+
+type MoodleCourseEnrolledUser = {
+    id: number,
+    profileimage: string,
+    fullname: string,
+    firstname: string,
+    lastname: string
+}
+
+type MoodleQuizAttemptType = {
+    id: number,
+    quiz: number,
+    userid: number,
+    attempt: number,
+    uniqueid: number,
+    layout: string,
+    currentpage: number,
+    preview: number,
+    state: string,
+    timestart: number,
+    timefinish: number,
+    timemodified: number,
+    timemodifiedoffline: number,
+    timecheckstate: null,
+    sumgrades: number,
+    gradeitemmarks: [],
+    gradednotificationsenttime: number
+}
+
+export type { MoodleCourseType, MoodleAssignmentType, MoodleSubmissionType, MoodleQuizType, MoodleCourseEnrolledUser, MoodleQuizAttemptType }
