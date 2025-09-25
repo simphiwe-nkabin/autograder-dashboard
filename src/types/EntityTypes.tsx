@@ -9,13 +9,15 @@ type SubmissionType = {
     courseId: number,
     coursModuleId: number,
     id: number,
-    assignmentId: number,
-    assignmentName: string,
+    submissionName: string,
     userId: number,
     attemptNumber: number,
     submittedAt: number,
     status: string,
-    gradingStatus: string
+    submissionType: "assignment" | "quiz"
+    gradingUrl: string,
+    courseUrl: string,
+    moduleUrl: string
 }
 
 export type { CourseType, SubmissionType }
