@@ -79,7 +79,7 @@ async function getAssignmentSubmissions(): Promise<SubmissionType[]> {
                     id: moodleSubmission.id,
                     userId: moodleSubmission.userid,
                     attemptNumber: moodleSubmission.attemptnumber,
-                    submittedAt: moodleSubmission.timecreated * 1000,
+                    submittedAt: moodleSubmission.timemodified * 1000,
                     status: moodleSubmission.status,
                     submissionType: "assignment",
                     gradingUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${assigment.coursModuleId}&action=grader&userid=${moodleSubmission.userid}`,
