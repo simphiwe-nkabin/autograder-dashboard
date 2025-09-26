@@ -90,7 +90,7 @@ type MoodleAssignmentType = {
     }[]
 }
 
-type MoodleSubmissionType = {
+type MoodleAssignmentSubmissionType = {
     assignments: [
         {
             assignmentid: number,
@@ -206,4 +206,4 @@ type MoodleQuizAttemptType = {
     gradednotificationsenttime: number
 }
 
-export type { MoodleCourseType, MoodleAssignmentType, MoodleSubmissionType, MoodleQuizType, MoodleCourseEnrolledUser, MoodleQuizAttemptType }
+export type { MoodleCourseType, MoodleAssignmentType, MoodleAssignmentSubmissionType, MoodleQuizType, MoodleCourseEnrolledUser, MoodleQuizAttemptType }

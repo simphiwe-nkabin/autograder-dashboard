@@ -1,5 +1,5 @@
 import type { CourseType, SubmissionType } from "../types/EntityTypes";
-import { type MoodleAssignmentType, type MoodleCourseEnrolledUser, type MoodleCourseType, type MoodleQuizAttemptType, type MoodleQuizType, type MoodleSubmissionType } from "../types/moodleDataTypes"
+import { type MoodleAssignmentType, type MoodleCourseEnrolledUser, type MoodleCourseType, type MoodleQuizAttemptType, type MoodleQuizType, type MoodleAssignmentSubmissionType } from "../types/moodleDataTypes"
 
 const WSFunctions = {
     core_course_get_courses: "core_course_get_courses",
@@ -65,12 +65,12 @@ async function getAssignmentSubmissions(): Promise<SubmissionType[]> {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const submissionsResult: MoodleSubmissionType = await response.json();
+        const submissionsResult: MoodleAssignmentSubmissionType = await response.json();
         const moodleSubmissions = submissionsResult.assignments[0].submissions
         for (let j = 0; j < moodleSubmissions.length; j++) {
 
             const moodleSubmission = moodleSubmissions[j];
-            if (moodleSubmission.status !== 'graded' && moodleSubmission.status == 'submitted') {
+            if (moodleSubmission.gradingstatus !== 'graded' && moodleSubmission.status == 'submitted') {
                 submissions.push({
                     courseId: assigment.courseId,
                     courseName: assigment.courseName,
