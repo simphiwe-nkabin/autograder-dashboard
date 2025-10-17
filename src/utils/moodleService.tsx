@@ -1,4 +1,4 @@
-import type { CourseType, SubmissionType } from "../types/EntityTypes";
+import type { AssignmentMetaType, CourseType, SubmissionType } from "../types/EntityTypes";
 import { type MoodleAssignmentType, type MoodleCourseEnrolledUser, type MoodleCourseType, type MoodleQuizAttemptType, type MoodleQuizType, type MoodleAssignmentSubmissionType } from "../types/moodleDataTypes"
 
 const WSFunctions = {
@@ -18,11 +18,22 @@ function getUrl(wsfunction: string) {
 }
 
 async function getCourses(): Promise<CourseType[]> {
-    const response = await fetch(getUrl(WSFunctions.core_course_get_courses))
+    let response;
+    try {
+        response = await fetch(getUrl(WSFunctions.core_course_get_courses))
+    } catch (error) {
+        console.log(`Error: Could not fetch courses`, error);
+        return []
+    }
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        response.json()
+            .then(errResponse => console.log(`Error: Could not fetch courses`, errResponse))
+            .catch(() => console.log(`Error: Could not fetch courses`, response))
+        return []
     }
     const result: MoodleCourseType[] = await response.json();
+
+    if (!Array.isArray(result)) return [];
     return result.map((item: MoodleCourseType) => ({
         id: item.id,
         name: item.shortname,
@@ -31,42 +42,12 @@ async function getCourses(): Promise<CourseType[]> {
 }
 
 async function getAssignmentSubmissions(): Promise<SubmissionType[]> {
-    const assignments = []
-
-    const response = await fetch(getUrl(WSFunctions.mod_assign_get_assignments))
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result: MoodleAssignmentType = await response.json();
-    for (let i = 0; i < result.courses.length; i++) {
-        const course = result.courses[i];
-        const courseName = course.shortname
-
-        for (let j = 0; j < course.assignments.length; j++) {
-            const assignment = course.assignments[j];
-
-            assignments.push({
-                courseId: assignment.course,
-                courseName,
-                coursModuleId: assignment.cmid,
-                id: assignment.id,
-                name: assignment.name
-            })
-        }
-    }
-
+    const assignments = await getAllAssignments()
 
     const submissions: SubmissionType[] = []
     for (let i = 0; i < assignments.length; i++) {
         const assigment = assignments[i];
-        const response = await fetch(getUrl(WSFunctions.mod_assign_get_submissions) + `&assignmentids[0]=${assigment.id}`)
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const submissionsResult: MoodleAssignmentSubmissionType = await response.json();
-        const moodleSubmissions = submissionsResult.assignments[0].submissions
+        const moodleSubmissions = await getSubmissionsByAssignment(assigment.id)
         for (let j = 0; j < moodleSubmissions.length; j++) {
 
             const moodleSubmission = moodleSubmissions[j];
@@ -93,13 +74,83 @@ async function getAssignmentSubmissions(): Promise<SubmissionType[]> {
     return submissions;
 }
 
-async function getAllQuizzes(): Promise<MoodleQuizType[]> {
-    const response = await fetch(getUrl(WSFunctions.mod_quiz_get_quizzes_by_courses))
+async function getSubmissionsByAssignment(assignmentId: number) {
+    let response;
+    try {
+        response = await fetch(getUrl(WSFunctions.mod_assign_get_submissions) + `&assignmentids[0]=${assignmentId}`)
+    } catch (error) {
+        console.log(`Error: Could not fetch submissions by assignment ${assignmentId}`, error);
+        return []
+    };
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        response.json()
+            .then(errResponse => console.log(`Error: Could not fetch submissions by assignment ${assignmentId}`, errResponse))
+            .catch(() => console.log(`Error: Could not fetch submissions by assignment ${assignmentId}`, response))
+        return []
+    }
+
+    const result: MoodleAssignmentSubmissionType = await response.json();
+    if (!result?.assignments?.length) return []
+    if (!Array.isArray(result.assignments[0].submissions)) return []
+    return result.assignments[0].submissions
+}
+
+async function getAllAssignments(): Promise<AssignmentMetaType[]> {
+    const assignments: AssignmentMetaType[] = []
+    let response;
+    try {
+        response = await fetch(getUrl(WSFunctions.mod_assign_get_assignments))
+    } catch (error) {
+        console.log(`Error: Could not fetch assignments`, error);
+        return []
+    }
+
+    if (!response.ok) {
+        response.json()
+            .then(errResponse => console.log(`Error: Could not fetch assignments`, errResponse))
+            .catch(() => console.log(`Error: Could not fetch assignments`, response))
+        return []
+    }
+
+    const result: MoodleAssignmentType = await response.json();
+    if (!Array.isArray(result?.courses)) return [];
+    for (let i = 0; i < result.courses.length; i++) {
+        const course = result.courses[i];
+        const courseName = course.shortname
+
+        for (let j = 0; j < course.assignments.length; j++) {
+            const assignment = course.assignments[j];
+
+            assignments.push({
+                courseId: assignment.course,
+                courseName,
+                coursModuleId: assignment.cmid,
+                id: assignment.id,
+                name: assignment.name
+            })
+        }
+    }
+    return assignments
+}
+
+async function getAllQuizzes(): Promise<MoodleQuizType[]> {
+    let response;
+    try {
+        response = await fetch(getUrl(WSFunctions.mod_quiz_get_quizzes_by_courses))
+    } catch (error) {
+        console.log(`Error: Could not fetch all quizzes`, error);
+        return []
+    }
+
+    if (!response.ok) {
+        response.json()
+            .then(errResponse => console.log(`Error: Could not fetch all quizzes`, errResponse))
+            .catch(() => console.log(`Error: Could not fetch all quizzes`, response))
+        return []
     }
 
     const jsonRes: { quizzes: MoodleQuizType[] } = await response.json()
+    if (!Array.isArray(jsonRes?.quizzes)) return []
     return jsonRes.quizzes
 }
 
@@ -124,12 +175,22 @@ async function getEnrolledUsersByCourseModule(cmid: number) {
 }
 
 async function getUserQuizAttempts(quizId: number, userId: number): Promise<MoodleQuizAttemptType[]> {
-    const response = await fetch(getUrl(WSFunctions.mod_quiz_get_user_attempts) + `&quizid=${quizId}&userid=${userId}`)
+    let response;
+    try {
+        response = await fetch(getUrl(WSFunctions.mod_quiz_get_user_attempts) + `&quizid=${quizId}&userid=${userId}`)
+    } catch (error) {
+        console.log(`Error: Could not fetch user quiz attempts`, error);
+        return []
+    }
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        response.json()
+            .then(errResponse => console.log(`Error: Could not fetch user quiz attempts`, errResponse))
+            .catch(() => console.log(`Error: Could not fetch user quiz attempts`, response))
+        return []
     }
 
     const jsonRes: { attempts: MoodleQuizAttemptType[] } = await response.json()
+    if (!Array.isArray(jsonRes?.attempts)) return []
     return jsonRes.attempts
 }
 

@@ -20,4 +20,12 @@ type SubmissionType = {
     moduleUrl: string
 }
 
-export type { CourseType, SubmissionType }
+type AssignmentMetaType = {
+    courseId: number,
+    courseName: string,
+    coursModuleId: number,
+    id: number,
+    name: string
+}
+
+export type { CourseType, SubmissionType, AssignmentMetaType }
