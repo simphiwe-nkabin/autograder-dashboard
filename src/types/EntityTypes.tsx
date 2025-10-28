@@ -28,4 +28,7 @@ type AssignmentMetaType = {
     name: string
 }
 
-export type { CourseType, SubmissionType, AssignmentMetaType }
+
+
+
+export type { CourseType, SubmissionType, AssignmentMetaType, }
