@@ -4,7 +4,7 @@ import Header from './components/Header'
 import Home from './views/Home'
 import { withAuthenticationRequired } from '@auth0/auth0-react'
 import Submissions from './views/Submissions'
-import Logs from "./views/Logs";
+import Logs from './views/Logs'
 
 function App() {
 
@@ -15,7 +15,7 @@ function App() {
 				<Routes>
 					<Route index element={<Home />} />
 					<Route path="/submissions" element={<Submissions />} />
-					<Route path="/logs" element={<Logs />} />
+					<Route path="/Logs" element={<Logs />} />
 				</Routes>
 			</main>
 		</div>
@@ -23,4 +23,5 @@ function App() {
 }
 
 export default withAuthenticationRequired(App)
+
 
