@@ -20,4 +20,5 @@ function App() {
   )
 }
 
-export default withAuthenticationRequired(App)
+//export default withAuthenticationRequired(App)
+export default App

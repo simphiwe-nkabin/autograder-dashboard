@@ -40,7 +40,7 @@ export default function SubmissionTable() {
         { field: 'submitted', width: 200, resizable: false, flex: 0, valueFormatter: (param) => moment(param.value).fromNow() },
         { field: 'status', width: 100, resizable: false, flex: 0 },
         { field: 'blocked', width: 100, resizable: false, flex: 0, editable: true },
-        { field: "comment", editable: (params) => params.data.blocked, cellStyle: { color: "red" } },
+        { field: "comment", editable: true, cellStyle: { color: "red" } },
         { field: 'action', width: 150, resizable: false, flex: 0, cellStyle: { color: "#0084d1", cursor: "pointer" }, sortable: false },
         { field: 'courseUrl', hide: true },
         { field: 'moduleUrl', hide: true },
