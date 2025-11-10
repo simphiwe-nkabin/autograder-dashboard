@@ -11,7 +11,7 @@ type LogRow = {
 };
 
 //mock data
-const logData: LogRow[] = [
+const LogData: LogRow[] = [
   {
     timestamp: "2025-10-28 10:15:23",
     course: "Python",
@@ -33,13 +33,13 @@ const logData: LogRow[] = [
 ];
 
 function uniqueOptions(field: keyof LogRow) {
-  return Array.from(new Set(logData.map((row) => row[field]))) as string[];
+  return Array.from(new Set(LogData.map((row) => row[field]))) as string[];
 }
 
 export default function LogsTable() {
   const [filters, setFilters] = useState({ course: "", assignment: "", status: "" });
 
-  const filteredData = logData.filter(
+  const filteredData = LogData.filter(
     (row) =>
       (!filters.course || row.course === filters.course) &&
       (!filters.assignment || row.assignment === filters.assignment) &&
