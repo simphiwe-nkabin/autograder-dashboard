@@ -1,128 +1,187 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import storageService from '../utils/storageService';
+
+
 
 type LogRow = {
-  timestamp: string;
-  course: string;
-  assignment: string;
-  learner: string;
-  status: string;
-  error: string;
-  output: string;
+  id: number;
+  created_at: string;               // Timestamp
+  submitted_at: string | null;      // Submission date
+  course_id: number;
+  assignment_name: string;
+  submission_status: string;
+  autograde_status: string;
+  autograde_status_details: string;
 };
 
-//mock data
-const LogData: LogRow[] = [
-  {
-    timestamp: "2025-10-28 10:15:23",
-    course: "Python",
-    assignment: "Python Basics",
-    learner: "John",
-    status: "Graded",
-    error: "",
-    output: "Passed all tests",
-  },
-  {
-    timestamp: "2025-10-28 10:45:11",
-    course: "JavaScript",
-    assignment: "JavaScript Basics",
-    learner: "Teekay",
-    status: "Error",
-    error: "Compilation failed",
-    output: "",
-  },
-];
 
-function uniqueOptions(field: keyof LogRow) {
-  return Array.from(new Set(LogData.map((row) => row[field]))) as string[];
+function uniqueOptions(field: keyof LogRow, rows: LogRow[]) {
+  return Array.from(new Set(rows.map((row) => String(row[field]))));
 }
 
 export default function LogsTable() {
-  const [filters, setFilters] = useState({ course: "", assignment: "", status: "" });
+  const [filters, setFilters] = useState({
+    course_id: '',
+    assignment_name: '',
+    autograde_status: '',
+  });
 
-  const filteredData = LogData.filter(
-    (row) =>
-      (!filters.course || row.course === filters.course) &&
-      (!filters.assignment || row.assignment === filters.assignment) &&
-      (!filters.status || row.status === filters.status)
-  );
+  const [rows, setRows] = useState<LogRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadLogs() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const data = await storageService.getAutogradeWorkerLogs();
+
+        const mapped: LogRow[] = data.map((item) => ({
+          id: item.id,
+          created_at: item.created_at,
+          submitted_at: item.submitted_at,
+          course_id: item.course_id,
+          assignment_name: item.assignment_name,
+          submission_status: item.submission_status,
+          autograde_status: item.autograde_status,
+          autograde_status_details: item.autograde_status_details,
+        }));
+
+        setRows(mapped);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load logs');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadLogs();
+  }, []);
+
+  const filteredData = rows.filter((row) => {
+    const courseMatches =
+      !filters.course_id || String(row.course_id) === filters.course_id;
+
+    const assignmentMatches =
+      !filters.assignment_name ||
+      row.assignment_name === filters.assignment_name;
+
+    const statusMatches =
+      !filters.autograde_status ||
+      row.autograde_status === filters.autograde_status;
+
+    return courseMatches && assignmentMatches && statusMatches;
+  });
+
+  const courseOptions = uniqueOptions('course_id', rows);
+  const assignmentOptions = uniqueOptions('assignment_name', rows);
+  const statusOptions = uniqueOptions('autograde_status', rows);
 
   return (
-    <div>
+    <div className="p-4">
       {/* Filters */}
-      <div className="mb-4 flex gap-4">
+      <div className="flex gap-4 mb-4">
+        {/* Course ID */}
         <select
-          className="border rounded px-2 py-1"
-          value={filters.course}
-          onChange={(e) => setFilters({ ...filters, course: e.target.value })}
+          className="border p-2"
+          value={filters.course_id}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, course_id: e.target.value }))
+          }
         >
           <option value="">All Courses</option>
-          {uniqueOptions("course").map((c) => (
-            <option key={c} value={c}>{c}</option>
+          {courseOptions.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
           ))}
         </select>
+
+        {/* Assignment Name */}
         <select
-          className="border rounded px-2 py-1"
-          value={filters.assignment}
-          onChange={(e) => setFilters({ ...filters, assignment: e.target.value })}
+          className="border p-2"
+          value={filters.assignment_name}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, assignment_name: e.target.value }))
+          }
         >
           <option value="">All Assignments</option>
-          {uniqueOptions("assignment").map((a) => (
-            <option key={a} value={a}>{a}</option>
+          {assignmentOptions.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
           ))}
         </select>
+
+        {/* Autograde Status */}
         <select
-          className="border rounded px-2 py-1"
-          value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          className="border p-2"
+          value={filters.autograde_status}
+          onChange={(e) =>
+            setFilters((prev) => ({
+              ...prev,
+              autograde_status: e.target.value
+            }))
+          }
         >
           <option value="">All Statuses</option>
-          {uniqueOptions("status").map((s) => (
-            <option key={s} value={s}>{s}</option>
+          {statusOptions.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
           ))}
         </select>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-fixed border border-gray-200">
-          <thead>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b bg-gray-100">
+            <th className="p-2 text-left">Timestamp</th>
+            <th className="p-2 text-left">Submitted At</th>
+            <th className="p-2 text-left">Course ID</th>
+            <th className="p-2 text-left">Assignment</th>
+            <th className="p-2 text-left">Submission Status</th>
+            <th className="p-2 text-left">Autograde Status</th>
+            <th className="p-2 text-left">Details</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {isLoading && (
             <tr>
-              <th className="px-4 py-2 border-b font-semibold text-left">Timestamp</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Course</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Assignment</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Learner</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Status</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Error</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Autograder Output</th>
-              <th className="px-4 py-2 border-b font-semibold text-left">Actions</th>
+              <td colSpan={7} className="text-center py-4">
+                Loading logs...
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {filteredData.length ? (
-              filteredData.map((log, idx) => (
-                <tr key={idx} className="border-t">
-                  <td className="px-4 py-2">{log.timestamp}</td>
-                  <td className="px-4 py-2">{log.course}</td>
-                  <td className="px-4 py-2">{log.assignment}</td>
-                  <td className="px-4 py-2">{log.learner}</td>
-                  <td className="px-4 py-2">{log.status}</td>
-                  <td className="px-4 py-2 text-red-600">{log.error}</td>
-                  <td className="px-4 py-2">{log.output}</td>
-                  <td className="px-4 py-2">
-                    <button className="text-blue-500 underline">View</button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={8} className="px-4 py-4 text-center">
-                  No logs to show
-                </td>
+          )}
+
+          {!isLoading && error && (
+            <tr>
+              <td colSpan={7} className="text-center py-4 text-red-600">
+                {error}
+              </td>
+            </tr>
+          )}
+
+          {!isLoading &&
+            !error &&
+            filteredData.map((row) => (
+              <tr key={row.id} className="border-b">
+                <td className="p-2">{row.created_at}</td>
+                <td className="p-2">{row.submitted_at || '—'}</td>
+                <td className="p-2">{row.course_id}</td>
+                <td className="p-2">{row.assignment_name}</td>
+                <td className="p-2 capitalize">{row.submission_status}</td>
+                <td className="p-2 capitalize">{row.autograde_status}</td>
+                <td className="p-2">{row.autograde_status_details}</td>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))}
+        </tbody>
+      </table>
     </div>
   );
 }
