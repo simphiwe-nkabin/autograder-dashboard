@@ -56,8 +56,17 @@ export default function SubmissionTable() {
         try {
             const submissions = await moodleService.getAssignmentSubmissions()
             const blockedSubmissions = await storageService.getAllBlockedSubmissions()
+            const submissionComments = await storageService.getSubmissionComments()
+            
+            
             const submissionRows: RowItemType[] = submissions.map((submission) => {
                 const blockedSubmission = blockedSubmissions.find((item => item.submission_id == submission.id))
+                const submissionComment = submissionComments.find((item: any) => item.submission_id == submission.id)
+                
+                // Get comment from submission_comments table (for unblocked) or blocked_submission table (for blocked)
+                const comment = submissionComment?.comment || blockedSubmission?.comment || ""
+                
+                
                 return {
                     submissionId: submission.id,
                     course: submission.courseName,
@@ -66,7 +75,7 @@ export default function SubmissionTable() {
                     submitted: new Date(submission.submittedAt),
                     status: submission.status,
                     blocked: !!blockedSubmission?.id,
-                    comment: blockedSubmission?.comment || "",
+                    comment: comment,
                     action: 'Grade',
                     type: 'assignment',
                     courseUrl: submission.courseUrl,
@@ -74,33 +83,50 @@ export default function SubmissionTable() {
                     gradingUrl: submission.gradingUrl
                 }
             })
-            setRowData(prevState => [...prevState, ...submissionRows])
+            setRowData(submissionRows)
             setLoading(false)
         } catch (error) {
-            console.log(error);
             setLoading(false)
         }
     }
 
     useEffect(() => {
-        moodleService.getQuizSubmissions().then(data => {
-            const quizSubmissions: RowItemType[] = data.map(quiz => ({
-                submissionId: quiz.id,
-                course: quiz.courseName,
-                assignment: quiz.submissionName,
-                learner: quiz.userId,
-                submitted: new Date(quiz.submittedAt),
-                status: quiz.status,
-                blocked: false,
-                comment: "",
-                action: 'Grade',
-                type: 'quiz',
-                courseUrl: quiz.courseUrl,
-                moduleUrl: quiz.moduleUrl,
-                gradingUrl: quiz.gradingUrl
-            }))
-            setRowData((prevState) => [...prevState, ...quizSubmissions])
-        })
+        async function loadAllData() {
+            try {
+                // Load comments once
+                const submissionComments = await storageService.getSubmissionComments()
+                
+                // Load quiz submissions
+                const quizData = await moodleService.getQuizSubmissions()
+                const quizSubmissions: RowItemType[] = quizData.map(quiz => {
+                    const submissionComment = submissionComments.find((item: any) => item.submission_id == quiz.id)
+                    return {
+                        submissionId: quiz.id,
+                        course: quiz.courseName,
+                        assignment: quiz.submissionName,
+                        learner: quiz.userId,
+                        submitted: new Date(quiz.submittedAt),
+                        status: quiz.status,
+                        blocked: false,
+                        comment: submissionComment?.comment || "",
+                        action: 'Grade',
+                        type: 'quiz',
+                        courseUrl: quiz.courseUrl,
+                        moduleUrl: quiz.moduleUrl,
+                        gradingUrl: quiz.gradingUrl
+                    }
+                })
+                // Merge quiz submissions with existing assignment data
+                setRowData((prevState) => {
+                    // Filter out any existing quiz submissions and add new ones
+                    const assignmentOnly = prevState.filter(item => item.type === 'assignment')
+                    return [...assignmentOnly, ...quizSubmissions]
+                })
+            } catch (error) {
+            }
+        }
+        
+        loadAllData()
         fetchData()
     }, [])
 
@@ -142,20 +168,58 @@ export default function SubmissionTable() {
                         const column: AgColumn | any = event.column
 
                         if (column.colId == 'blocked') {
-                            if (event.oldValue === false)
+                            if (event.oldValue === false) {
+                                // Blocking: migrate comment from submission_comments to blocked_submission
+                                const currentComment = event.data.comment || ""
                                 storageService
                                     .createBlockedSubmission(event.data.submissionId)
-                                    .catch(err => { console.log(err) })
-                            else
-                                storageService
-                                    .removeBlockedSubmission(event.data.submissionId)
-                                    .catch(err => { console.log(err) })
+                                    .then(() => {
+                                        // If there's a comment, update it in blocked_submission and delete from submission_comments
+                                        if (currentComment) {
+                                            storageService.updateBlockedSubmissionComment(event.data.submissionId, currentComment)
+                                                .then(() => {
+                                                    // Delete from submission_comments
+                                                    storageService.deleteSubmissionComment(event.data.submissionId)
+                                                        .catch(err => { })
+                                                })
+                                                .catch(err => { })
+                                        }
+                                    })
+                                    .catch(err => { })
+                            } else {
+                                // Unblocking: migrate comment from blocked_submission to submission_comments
+                                const currentComment = event.data.comment || ""
+                                if (currentComment) {
+                                    storageService
+                                        .saveSubmissionComment(event.data.submissionId, currentComment)
+                                        .then(() => {
+                                            // Delete from blocked_submission
+                                            storageService.removeBlockedSubmission(event.data.submissionId)
+                                                .catch(err => { })
+                                        })
+                                        .catch(err => { })
+                                } else {
+                                    // No comment, just remove from blocked_submission
+                                    storageService
+                                        .removeBlockedSubmission(event.data.submissionId)
+                                        .catch(err => { })
+                                }
+                            }
                         }
 
-                        if (column.colId == 'comment')
-                            storageService
-                                .updateBlockedSubmissionComment(event.data.submissionId, event.newValue)
-                                .catch(err => { console.log(err) })
+                        if (column.colId == 'comment') {
+                            // If submission is blocked, save to blocked_submission table
+                            if (event.data.blocked) {
+                                storageService
+                                    .updateBlockedSubmissionComment(event.data.submissionId, event.newValue)
+                                    .catch(err => { })
+                            } else {
+                                // If submission is not blocked, save to submission_comments table
+                                storageService
+                                    .saveSubmissionComment(event.data.submissionId, event.newValue)
+                                    .catch(err => { })
+                            }
+                        }
                     }}
                 />}
             </div>
