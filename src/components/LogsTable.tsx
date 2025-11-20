@@ -73,7 +73,7 @@ export default function LogsTable() {
       setIsLoading(true);
       setError(null);
 
-      const data = await storageService.getAutogradeWorkerLogs();
+      const data = await storageService.getAutogradeWorkerLogs(); // Fetch data
 
       const mapped: LogRow[] = data.map((item) => ({
         id: item.id,
@@ -129,7 +129,7 @@ export default function LogsTable() {
   const statusOptions = uniqueOptions("autograde_status", rows);
 
   
-  // RENDER
+  // Refresh & Render
 
   return (
     <div className="p-4">
@@ -215,13 +215,13 @@ export default function LogsTable() {
           {/* Error row */}
           {!isLoading && error && (
             <tr>
-              <td colSpan={9} className="text-center py-4 text-red-500">{error}</td>
+              <td colSpan={9} className="text-center py-4 text-red-500">{error}</td> 
             </tr>
           )}
 
           {/* Data rows */}
           {!isLoading && !error && pageData.map((row) => {
-              const moodleUrl = `https://moodle.shaper.co.za/mod/assign/view.php?id=${row.assignment_id}`;
+              const moodleUrl = `https://moodle.shaper.co.za/mod/assign/view.php?id=${row.assignment_id}`; 
 
               return (
                 <tr key={row.id} className="border-b">
@@ -289,7 +289,7 @@ export default function LogsTable() {
               {selectedError}
             </pre>
             <button
-              onClick={() => setSelectedError(null)}
+              onClick={() => setSelectedError(null)} //
               
               className="mt-4 px-4 py-2 bg-gray-700 text-white rounded"
             >
