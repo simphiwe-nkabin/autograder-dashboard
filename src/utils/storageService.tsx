@@ -64,6 +64,8 @@ async function updateBlockedSubmissionComment(id: number, comment: string) {
 
     return true
 }
+ 
+// load all autograde worker logs
 
 export async function getAutogradeWorkerLogs(): Promise<AutogradeWorkerLog[]> {
   const response = await fetch(
@@ -72,7 +74,7 @@ export async function getAutogradeWorkerLogs(): Promise<AutogradeWorkerLog[]> {
       method: 'GET',
       headers: {
         apikey: import.meta.env.VITE_SUPABASE_APIKEY as string,
-        // If your colleague later wants it:
+      
         // Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_APIKEY}`,
       },
     }
