@@ -1,15 +1,8 @@
-// LogsTable.tsx — fully corrected, all tags properly closed, includes comments
-// ---------------------------------------------------------------
-// This component displays autograder logs with filtering, pagination,
-// modal error viewing, and links to Moodle.
-// ---------------------------------------------------------------
-
 import { useState, useEffect } from "react";
 import storageService from "../utils/storageService";
 
-// ---------------------------------------------------------------
 // Type definition for each log entry returned by Supabase
-// ---------------------------------------------------------------
+
 type LogRow = {
   id: number;
   created_at: string;
@@ -23,16 +16,14 @@ type LogRow = {
   autograde_status_details: string;
 };
 
-// ---------------------------------------------------------------
+
 // Utility: Extract unique dropdown options for filters
-// ---------------------------------------------------------------
+
 function uniqueOptions(field: keyof LogRow, rows: LogRow[]) {
   return Array.from(new Set(rows.map((row) => String(row[field]))));
 }
-
-// ---------------------------------------------------------------
 // Utility: Convert timestamps into “x minutes/hours/days ago”
-// ---------------------------------------------------------------
+
 function timeAgo(dateString: string | null): string {
   if (!dateString) return "—";
   const date = new Date(dateString);
@@ -52,9 +43,8 @@ function timeAgo(dateString: string | null): string {
   return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
 }
 
-// ---------------------------------------------------------------
 // MAIN COMPONENT — Logs Table
-// ---------------------------------------------------------------
+
 export default function LogsTable() {
   // UI state
   const [filters, setFilters] = useState({
@@ -70,9 +60,9 @@ export default function LogsTable() {
   const pageSize = 50;
   const [selectedError, setSelectedError] = useState<string | null>(null);
 
-  // ---------------------------------------------------------------
+  
   // Load logs from Supabase
-  // ---------------------------------------------------------------
+
   async function loadLogs() {
     try {
       setIsLoading(true);
@@ -111,9 +101,9 @@ export default function LogsTable() {
     loadLogs();
   }, []);
 
-  // ---------------------------------------------------------------
+
   // Filtering logic
-  // ---------------------------------------------------------------
+ 
   const filteredData = rows.filter((row) => {
     const courseMatch = !filters.course_id || String(row.course_id) === filters.course_id;
     const assignmentMatch = !filters.assignment_name || row.assignment_name === filters.assignment_name;
@@ -121,9 +111,8 @@ export default function LogsTable() {
     return courseMatch && assignmentMatch && statusMatch;
   });
 
-  // ---------------------------------------------------------------
   // Pagination logic
-  // ---------------------------------------------------------------
+
   const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
@@ -133,9 +122,8 @@ export default function LogsTable() {
   const assignmentOptions = uniqueOptions("assignment_name", rows);
   const statusOptions = uniqueOptions("autograde_status", rows);
 
-  // ---------------------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------------------
+  
+  // Refresh & Render
   return (
     <div className="p-4">
       {/* Refresh button */}
