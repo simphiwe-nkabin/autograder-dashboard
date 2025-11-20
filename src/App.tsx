@@ -23,5 +23,5 @@ function App() {
 }
 
 // Temporarily disabled due to sessionStorage security error
-export default withAuthenticationRequired(App)
-//export default App
+//export default withAuthenticationRequired(App)
+export default App

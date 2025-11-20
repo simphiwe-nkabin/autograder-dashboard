@@ -1,147 +1,151 @@
-import type { BlockedSubmission } from "../types/storageTypes";
+import type { Submission } from "../types/storageTypes";
 
-async function getAllBlockedSubmissions() {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission`, {
-        headers: {
-            'apiKey': import.meta.env.VITE_SUPABASE_APIKEY
-        }
-    })
+const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
+const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
+// --- Private Helper Functions ---
 
-    const result: BlockedSubmission[] = await response.json()
-    return result
-}
-
-async function createBlockedSubmission(id: number) {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission`, {
-        method: 'POST',
-        headers: {
-            'apiKey': import.meta.env.VITE_SUPABASE_APIKEY,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ submission_id: id, comment: "" })
-    })
-
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return true
-}
-
-async function removeBlockedSubmission(id: number) {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission?submission_id=eq.${id}`, {
-        method: 'DELETE',
-        headers: {
-            'apiKey': import.meta.env.VITE_SUPABASE_APIKEY
-        }
-    })
-
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return true
-}
-
-async function updateBlockedSubmissionComment(id: number, comment: string) {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission?submission_id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-            'apiKey': import.meta.env.VITE_SUPABASE_APIKEY,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ comment })
-    })
-
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return true
-}
-
-async function saveSubmissionComment(id: number, comment: string) {
+/**
+ * Fetches a submission by its ID. Returns null if not found.
+ */
+async function getSubmission(submissionId: number): Promise<Submission | null> {
     try {
-        // If comment is empty, delete the record
-        if (!comment || comment.trim() === "") {
-            return deleteSubmissionComment(id)
-        }
+        const response = await fetch(`${BASE_URL}?submission_id=eq.${submissionId}&limit=1`, {
+            headers: { 'apiKey': API_KEY }
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.length > 0 ? data[0] : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * The single source of truth for creating or updating a submission.
+ * This function handles all updates atomically.
+ */
+async function upsertSubmission(submissionId: number, data: Partial<Pick<Submission, 'blocked' | 'comment'>>) {
+    try {
+        const existing = await getSubmission(submissionId);
         
-        // Always try to create first (since we're using UNIQUE constraint)
-        const postResponse = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/submission_comments`, {
-            method: 'POST',
-            headers: {
-                'apiKey': import.meta.env.VITE_SUPABASE_APIKEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ submission_id: id, comment })
-        })
+        if (existing) {
+            // --- UPDATE (PATCH) ---
+            const response = await fetch(`${BASE_URL}?submission_id=eq.${submissionId}`, {
+                method: 'PATCH',
+                headers: { 'apiKey': API_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-        if (postResponse.ok) {
-            return true
+            if (!response.ok) {
+                throw new Error(`PATCH failed: ${response.status} ${await response.text()}`);
+            }
+        } else {
+            // --- CREATE (POST) ---
+            const payload = {
+                submission_id: submissionId,
+                blocked: data.blocked ?? false, // Default to false if not provided
+                comment: data.comment ?? null   // Default to null if not provided
+            };
+            const response = await fetch(BASE_URL, {
+                method: 'POST',
+                headers: { 'apiKey': API_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`POST failed: ${response.status} ${await response.text()}`);
+            }
         }
-
-        // If POST fails (likely duplicate), try PATCH
-        const patchResponse = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/submission_comments?submission_id=eq.${id}`, {
-            method: 'PATCH',
-            headers: {
-                'apiKey': import.meta.env.VITE_SUPABASE_APIKEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ comment })
-        })
-
-        if (patchResponse.ok) {
-            return true
-        }
-
-        const errorData = await patchResponse.json()
-        throw new Error(`HTTP error! status: ${patchResponse.status}`);
+        return true;
     } catch (error) {
-        throw error
+        return false;
     }
 }
 
-async function deleteSubmissionComment(id: number) {
+// --- Public API ---
+
+/**
+ * Fetch all submissions from the unified submissions table.
+ */
+async function getAllSubmissions(): Promise<Submission[]> {
     try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/submission_comments?submission_id=eq.${id}`, {
-            method: 'DELETE',
-            headers: {
-                'apiKey': import.meta.env.VITE_SUPABASE_APIKEY
-            }
-        })
+        const response = await fetch(BASE_URL, {
+            headers: { 'apiKey': API_KEY }
+        });
 
         if (!response.ok) {
-            return false
+            throw new Error(`HTTP error! status: ${response.status} ${await response.text()}`);
         }
-
-        return true
+        return await response.json();
     } catch (error) {
-        return false
+        return [];
     }
 }
 
+/**
+ * Blocks a submission.
+ */
+function createBlockedSubmission(submissionId: number) {
+    return upsertSubmission(submissionId, { blocked: true });
+}
+
+/**
+ * Unblocks a submission.
+ */
+function removeBlockedSubmission(submissionId: number) {
+    return upsertSubmission(submissionId, { blocked: false });
+}
+
+/**
+ * Saves a comment for a submission. Normalizes empty strings to null.
+ */
+function saveSubmissionComment(submissionId: number, comment: string) {
+    const normalizedComment = !comment || comment.trim() === "" ? null : comment;
+    return upsertSubmission(submissionId, { comment: normalizedComment });
+}
+
+/**
+ * Deletes a submission's comment by setting it to null.
+ * This is non-destructive and keeps the submission record.
+ */
+function deleteSubmissionComment(submissionId: number) {
+    return upsertSubmission(submissionId, { comment: null });
+}
+
+/**
+ * Toggles the blocked status of a submission.
+ */
+async function toggleBlockedStatus(submissionId: number, currentStatus: boolean) {
+    return upsertSubmission(submissionId, { blocked: !currentStatus });
+}
+
+// --- Legacy/Compatibility Functions ---
+
+/**
+ * Get blocked submissions (for backward compatibility).
+ */
+async function getAllBlockedSubmissions() {
+    const submissions = await getAllSubmissions();
+    return submissions.filter(s => s.blocked);
+}
+
+/**
+ * Get all submission comments (for backward compatibility).
+ */
 async function getSubmissionComments() {
-    try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/submission_comments`, {
-            headers: {
-                'apiKey': import.meta.env.VITE_SUPABASE_APIKEY
-            }
-        })
-
-        if (!response.ok) {
-            return []
-        }
-
-        const comments = await response.json()
-        return comments
-    } catch (error) {
-        return []
-    }
+    const submissions = await getAllSubmissions();
+    return submissions.filter(s => s.comment);
 }
 
-export default { getAllBlockedSubmissions, createBlockedSubmission, removeBlockedSubmission, updateBlockedSubmissionComment, saveSubmissionComment, getSubmissionComments, deleteSubmissionComment }
+export default {
+    getAllSubmissions,
+    createBlockedSubmission,
+    removeBlockedSubmission,
+    saveSubmissionComment,
+    deleteSubmissionComment,
+    toggleBlockedStatus,
+    // Compatibility exports
+    getAllBlockedSubmissions,
+    getSubmissionComments
+};
