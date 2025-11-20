@@ -1,5 +1,7 @@
+
 import { useState, useEffect } from "react";
 import storageService from "../utils/storageService";
+
 
 // Type definition for each log entry returned by Supabase
 
@@ -17,11 +19,13 @@ type LogRow = {
 };
 
 
-// Utility: Extract unique dropdown options for filters
+// Extract unique dropdown options for filters
 
 function uniqueOptions(field: keyof LogRow, rows: LogRow[]) {
   return Array.from(new Set(rows.map((row) => String(row[field]))));
 }
+
+
 // Utility: Convert timestamps into “x minutes/hours/days ago”
 
 function timeAgo(dateString: string | null): string {
@@ -43,6 +47,7 @@ function timeAgo(dateString: string | null): string {
   return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
 }
 
+
 // MAIN COMPONENT — Logs Table
 
 export default function LogsTable() {
@@ -60,7 +65,7 @@ export default function LogsTable() {
   const pageSize = 50;
   const [selectedError, setSelectedError] = useState<string | null>(null);
 
-  
+
   // Load logs from Supabase
 
   async function loadLogs() {
@@ -111,8 +116,9 @@ export default function LogsTable() {
     return courseMatch && assignmentMatch && statusMatch;
   });
 
+  
   // Pagination logic
-
+ 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
@@ -123,7 +129,8 @@ export default function LogsTable() {
   const statusOptions = uniqueOptions("autograde_status", rows);
 
   
-  // Refresh & Render
+  // RENDER
+
   return (
     <div className="p-4">
       {/* Refresh button */}
@@ -226,15 +233,13 @@ export default function LogsTable() {
                   <td className="p-2 capitalize">{row.submission_status}</td>
                   <td className="p-2 capitalize">{row.autograde_status}</td>
 
-                  <td className="p-2 w-64 truncate">
-                    <span className="truncate inline-block max-w-full">
-                      {row.autograde_status_details.slice(0, 80)}...
-                    </span>
+                  <td className="p-2 w-64">
                     <button
-                      onClick={() => setSelectedError(row.autograde_status_details)}
-                      className="ml-2 text-blue-600 hover:underline whitespace-nowrap"
+                      disabled={row.autograde_status.toLowerCase() !== 'fail'}
+                      onClick={() => row.autograde_status.toLowerCase() === 'fail' && setSelectedError(row.autograde_status_details)}
+                      className={`text-left w-full ${row.autograde_status.toLowerCase() === 'fail' ? 'text-blue-600 hover:underline' : 'text-gray-500'} whitespace-normal line-clamp-2`}
                     >
-                      View
+                      {row.autograde_status_details}
                     </button>
                   </td>
 
@@ -285,6 +290,7 @@ export default function LogsTable() {
             </pre>
             <button
               onClick={() => setSelectedError(null)}
+              
               className="mt-4 px-4 py-2 bg-gray-700 text-white rounded"
             >
               Close
