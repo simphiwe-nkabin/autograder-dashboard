@@ -1,8 +1,10 @@
-type BlockedSubmission = {
+type Submission = {
     id: number,
     submission_id: number,
-    comment: string,
-    created_at: number
+    blocked: boolean,
+    comment: string | null,
+    created_at: string,
+    updated_at: string
 }
 
-export type { BlockedSubmission }
+export type { Submission }

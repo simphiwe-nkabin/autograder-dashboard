@@ -40,7 +40,7 @@ export default function SubmissionTable() {
         { field: 'submitted', width: 200, resizable: false, flex: 0, valueFormatter: (param) => moment(param.value).fromNow() },
         { field: 'status', width: 100, resizable: false, flex: 0 },
         { field: 'blocked', width: 100, resizable: false, flex: 0, editable: true },
-        { field: "comment", editable: (params) => params.data.blocked, cellStyle: { color: "red" } },
+        { field: "comment", editable: true, cellStyle: { color: "red" } },
         { field: 'action', width: 150, resizable: false, flex: 0, cellStyle: { color: "#0084d1", cursor: "pointer" }, sortable: false },
         { field: 'courseUrl', hide: true },
         { field: 'moduleUrl', hide: true },
@@ -51,13 +51,22 @@ export default function SubmissionTable() {
     const defaultColDef = { flex: 1 };
 
     async function fetchData() {
-        // submissions
-        setLoading(true)
+        setLoading(true);
         try {
-            const submissions = await moodleService.getAssignmentSubmissions()
-            const blockedSubmissions = await storageService.getAllBlockedSubmissions()
-            const submissionRows: RowItemType[] = submissions.map((submission) => {
-                const blockedSubmission = blockedSubmissions.find((item => item.submission_id == submission.id))
+            // 1. Fetch all Moodle submissions and add the 'type' property
+            const moodleAssignments = (await moodleService.getAssignmentSubmissions()).map(s => ({ ...s, type: 'assignment' }));
+            const moodleQuizzes = (await moodleService.getQuizSubmissions()).map(s => ({ ...s, type: 'quiz' }));
+            const allMoodleSubmissions = [...moodleAssignments, ...moodleQuizzes];
+
+            // 2. Fetch all submission metadata (blocked status, comments) from our DB in one call
+            const localSubmissions = await storageService.getAllSubmissions();
+
+            // 3. Create a lookup map for efficient access to local data
+            const localSubmissionsMap = new Map(localSubmissions.map(s => [s.submission_id, s]));
+
+            // 4. Map Moodle data to rows, enriching with local data
+            const submissionRows: RowItemType[] = allMoodleSubmissions.map((submission) => {
+                const localData = localSubmissionsMap.get(submission.id);
                 return {
                     submissionId: submission.id,
                     course: submission.courseName,
@@ -65,44 +74,26 @@ export default function SubmissionTable() {
                     learner: submission.userId,
                     submitted: new Date(submission.submittedAt),
                     status: submission.status,
-                    blocked: !!blockedSubmission?.id,
-                    comment: blockedSubmission?.comment || "",
+                    blocked: localData?.blocked || false,
+                    comment: localData?.comment || "",
                     action: 'Grade',
-                    type: 'assignment',
+                    type: submission.type as 'assignment' | 'quiz',
                     courseUrl: submission.courseUrl,
                     moduleUrl: submission.moduleUrl,
-                    gradingUrl: submission.gradingUrl
-                }
-            })
-            setRowData(prevState => [...prevState, ...submissionRows])
-            setLoading(false)
+                    gradingUrl: submission.gradingUrl,
+                };
+            });
+
+            setRowData(submissionRows);
         } catch (error) {
-            console.log(error);
-            setLoading(false)
+        } finally {
+            setLoading(false);
         }
     }
 
     useEffect(() => {
-        moodleService.getQuizSubmissions().then(data => {
-            const quizSubmissions: RowItemType[] = data.map(quiz => ({
-                submissionId: quiz.id,
-                course: quiz.courseName,
-                assignment: quiz.submissionName,
-                learner: quiz.userId,
-                submitted: new Date(quiz.submittedAt),
-                status: quiz.status,
-                blocked: false,
-                comment: "",
-                action: 'Grade',
-                type: 'quiz',
-                courseUrl: quiz.courseUrl,
-                moduleUrl: quiz.moduleUrl,
-                gradingUrl: quiz.gradingUrl
-            }))
-            setRowData((prevState) => [...prevState, ...quizSubmissions])
-        })
-        fetchData()
-    }, [])
+        fetchData();
+    }, []);
 
     return (
         <div>
@@ -139,23 +130,21 @@ export default function SubmissionTable() {
                             window.open(data.courseUrl, "_blank");
                     }}
                     onCellEditingStopped={(event: CellEditingStoppedEvent) => {
-                        const column: AgColumn | any = event.column
+                        const { colDef, data, newValue, oldValue } = event;
+                        const submissionId = data.submissionId;
 
-                        if (column.colId == 'blocked') {
-                            if (event.oldValue === false)
-                                storageService
-                                    .createBlockedSubmission(event.data.submissionId)
-                                    .catch(err => { console.log(err) })
-                            else
-                                storageService
-                                    .removeBlockedSubmission(event.data.submissionId)
-                                    .catch(err => { console.log(err) })
+                        switch (colDef.field) {
+                            case 'blocked':
+                                // The grid has already updated the value in the row data, so `newValue` is the new state
+                                storageService.toggleBlockedStatus(submissionId, oldValue)
+                                    .catch(() => { /* Error is intentionally ignored */ });
+                                break;
+
+                            case 'comment':
+                                storageService.saveSubmissionComment(submissionId, newValue)
+                                    .catch(() => { /* Error is intentionally ignored */ });
+                                break;
                         }
-
-                        if (column.colId == 'comment')
-                            storageService
-                                .updateBlockedSubmissionComment(event.data.submissionId, event.newValue)
-                                .catch(err => { console.log(err) })
                     }}
                 />}
             </div>
