@@ -1,6 +1,6 @@
 import { AgGridReact } from "ag-grid-react";
 import { AgColumn, AllCommunityModule, ModuleRegistry, type CellClickedEvent, type CellEditingStoppedEvent, type ColDef } from "ag-grid-community";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import moodleService from "../utils/moodleService";
 import moment from "moment";
 import Spinner from "./Spinner";
@@ -26,6 +26,11 @@ type RowItemType = {
 export default function SubmissionTable() {
     const [rowData, setRowData] = useState<RowItemType[]>([])
     const [loading, setLoading] = useState<Boolean>(false)
+
+    // State for filters
+    const [courseFilter, setCourseFilter] = useState<string>('all');
+    const [blockedFilter, setBlockedFilter] = useState<string>('all'); // 'all', 'blocked', 'unblocked'
+    const [commentFilter, setCommentFilter] = useState<string>('all'); // 'all', 'with', 'without'
 
     const [colDefs] = useState<ColDef[]>([
         { field: 'submissionId', hide: true },
@@ -95,9 +100,76 @@ export default function SubmissionTable() {
         fetchData();
     }, []);
 
+    const courses = useMemo(() => {
+        const courseSet = new Set(rowData.map(row => row.course));
+        return ['all', ...Array.from(courseSet)];
+    }, [rowData]);
+
+    const filteredData = useMemo(() => {
+        return rowData.filter(row => {
+            const courseMatch = courseFilter === 'all' || row.course === courseFilter;
+
+            const blockedMatch = blockedFilter === 'all' ||
+                (blockedFilter === 'blocked' && row.blocked) ||
+                (blockedFilter === 'unblocked' && !row.blocked);
+
+            const commentMatch = commentFilter === 'all' ||
+                (commentFilter === 'with' && row.comment && row.comment.trim() !== "") ||
+                (commentFilter === 'without' && (!row.comment || row.comment.trim() === ""));
+
+            return courseMatch && blockedMatch && commentMatch;
+        });
+    }, [rowData, courseFilter, blockedFilter, commentFilter]);
+
     return (
         <div>
-            <div className="flex justify-end items-center mb-3">
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex gap-4 items-center">
+                    {/* Course Filter */}
+                    <div>
+                        <label htmlFor="course-filter" className="mr-2 text-white">Filter By</label>
+                        <select
+                            id="course-filter"
+                            value={courseFilter}
+                            onChange={(e) => setCourseFilter(e.target.value)}
+                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                        >
+                            {courses.map(course => (
+                                <option key={course} value={course}>{course === 'all' ? 'All Courses' : course}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Blocked Filter */}
+                    <div>
+                       
+                        <select
+                            id="blocked-filter"
+                            value={blockedFilter}
+                            onChange={(e) => setBlockedFilter(e.target.value)}
+                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                        >
+                            <option value="all">All</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="unblocked">Unblocked</option>
+                        </select>
+                    </div>
+
+                    {/* Comment Filter */}
+                    <div>
+                       <select
+                            id="comment-filter"
+                            value={commentFilter}
+                            onChange={(e) => setCommentFilter(e.target.value)}
+                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                        >
+                            <option value="all">All</option>
+                            <option value="with">With Comment</option>
+                            <option value="without">Without Comment</option>
+                        </select>
+                    </div>
+                </div>
+
                 <button disabled={!!loading} onClick={() => fetchData()} title="refresh submission data" className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white flex items-center gap-2 hover:bg-gray-700 active:border-blue-400 disabled:opacity-50 disabled:border-none">
                     Refresh
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-arrow-clockwise" viewBox="0 0 16 16">
@@ -115,7 +187,7 @@ export default function SubmissionTable() {
                     </div>
                 }
                 {!loading && <AgGridReact
-                    rowData={rowData}
+                    rowData={filteredData}
                     columnDefs={colDefs}
                     defaultColDef={defaultColDef}
                     onCellClicked={(event: CellClickedEvent) => {
