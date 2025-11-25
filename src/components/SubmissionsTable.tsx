@@ -1,6 +1,7 @@
 import { AgGridReact } from "ag-grid-react";
 import { AgColumn, AllCommunityModule, ModuleRegistry, type CellClickedEvent, type CellEditingStoppedEvent, type ColDef } from "ag-grid-community";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import moodleService from "../utils/moodleService";
 import moment from "moment";
 import Spinner from "./Spinner";
@@ -26,11 +27,12 @@ type RowItemType = {
 export default function SubmissionTable() {
     const [rowData, setRowData] = useState<RowItemType[]>([])
     const [loading, setLoading] = useState<Boolean>(false)
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    // State for filters
-    const [courseFilter, setCourseFilter] = useState<string>('all');
-    const [blockedFilter, setBlockedFilter] = useState<string>('all'); // 'all', 'blocked', 'unblocked'
-    const [commentFilter, setCommentFilter] = useState<string>('all'); // 'all', 'with', 'without'
+    // State for filters, initialized from URL search params
+    const [courseFilter, setCourseFilter] = useState<string>(searchParams.get('course') || 'all');
+    const [blockedFilter, setBlockedFilter] = useState<string>(searchParams.get('blocked') || 'all');
+    const [commentFilter, setCommentFilter] = useState<string>(searchParams.get('comment') || 'all');
 
     const [colDefs] = useState<ColDef[]>([
         { field: 'submissionId', hide: true },
@@ -100,6 +102,27 @@ export default function SubmissionTable() {
         fetchData();
     }, []);
 
+    // Effect to update URL when filters change
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams);
+        if (courseFilter !== 'all') {
+            params.set('course', courseFilter);
+        } else {
+            params.delete('course');
+        }
+        if (blockedFilter !== 'all') {
+            params.set('blocked', blockedFilter);
+        } else {
+            params.delete('blocked');
+        }
+        if (commentFilter !== 'all') {
+            params.set('comment', commentFilter);
+        } else {
+            params.delete('comment');
+        }
+        setSearchParams(params, { replace: true });
+    }, [courseFilter, blockedFilter, commentFilter, setSearchParams]);
+
     const courses = useMemo(() => {
         const courseSet = new Set(rowData.map(row => row.course));
         return ['all', ...Array.from(courseSet)];
@@ -127,12 +150,12 @@ export default function SubmissionTable() {
                 <div className="flex gap-4 items-center">
                     {/* Course Filter */}
                     <div>
-                        <label htmlFor="course-filter" className="mr-2 text-white">Filter By</label>
+                        <label htmlFor="course-filter" className="mr-2 text-black font-semibold">Filter By</label>
                         <select
                             id="course-filter"
                             value={courseFilter}
                             onChange={(e) => setCourseFilter(e.target.value)}
-                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
                         >
                             {courses.map(course => (
                                 <option key={course} value={course}>{course === 'all' ? 'All Courses' : course}</option>
@@ -142,14 +165,13 @@ export default function SubmissionTable() {
 
                     {/* Blocked Filter */}
                     <div>
-                       
                         <select
                             id="blocked-filter"
                             value={blockedFilter}
                             onChange={(e) => setBlockedFilter(e.target.value)}
-                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
                         >
-                            <option value="all">All</option>
+                            <option value="all">All Status</option>
                             <option value="blocked">Blocked</option>
                             <option value="unblocked">Unblocked</option>
                         </select>
@@ -157,19 +179,18 @@ export default function SubmissionTable() {
 
                     {/* Comment Filter */}
                     <div>
-                       <select
+                        <select
                             id="comment-filter"
                             value={commentFilter}
                             onChange={(e) => setCommentFilter(e.target.value)}
-                            className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white"
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
                         >
-                            <option value="all">All</option>
+                            <option value="all">All Comments</option>
                             <option value="with">With Comment</option>
                             <option value="without">Without Comment</option>
                         </select>
                     </div>
                 </div>
-
                 <button disabled={!!loading} onClick={() => fetchData()} title="refresh submission data" className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white flex items-center gap-2 hover:bg-gray-700 active:border-blue-400 disabled:opacity-50 disabled:border-none">
                     Refresh
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-arrow-clockwise" viewBox="0 0 16 16">
