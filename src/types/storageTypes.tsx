@@ -10,7 +10,7 @@ type Submission = {
 }
 
 export type { Submission };
-export type { BlockedSubmission };
+
 
 export interface AutogradeWorkerLog {
     id: number;

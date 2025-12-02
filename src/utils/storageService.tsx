@@ -1,4 +1,4 @@
-import type { Submission, BlockedSubmission, AutogradeWorkerLog } from "../types/storageTypes";
+import type { Submission, AutogradeWorkerLog } from "../types/storageTypes";
 
 const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
 const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
