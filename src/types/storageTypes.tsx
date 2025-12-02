@@ -22,4 +22,5 @@ export interface AutogradeWorkerLog {
   submitted_at: string | null;
   autograde_status: string;
   autograde_status_details: string;
+  cmid: number;
 }

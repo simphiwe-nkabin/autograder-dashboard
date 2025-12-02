@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from "react";
+import moment from "moment";
 import storageService from "../utils/storageService";
 
-
-// Type definition for each log entry returned by Supabase
-
+// Log row type
 type LogRow = {
   id: number;
   created_at: string;
@@ -16,39 +14,19 @@ type LogRow = {
   submission_status: string;
   autograde_status: string;
   autograde_status_details: string;
+  cmid: number; // added for grading URL
 };
 
-
-// Extract unique dropdown options for filters
-
+// Unique filter options
 function uniqueOptions(field: keyof LogRow, rows: LogRow[]) {
   return Array.from(new Set(rows.map((row) => String(row[field]))));
 }
 
-
-// Utility: Convert timestamps into “x minutes/hours/days ago”
-
+// Time ago using moment.js
 function timeAgo(dateString: string | null): string {
   if (!dateString) return "—";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "—";
-
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffSec < 60) return "Just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} min ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-  const diffMonths = Math.floor(diffDays / 30);
-  return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
+  return moment(dateString).fromNow();
 }
-
-
-// MAIN COMPONENT — Logs Table
 
 export default function LogsTable() {
   // UI state
@@ -62,18 +40,17 @@ export default function LogsTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const pageSize = 50;
   const [selectedError, setSelectedError] = useState<string | null>(null);
 
+  const pageSize = 50;
 
   // Load logs from Supabase
-
   async function loadLogs() {
     try {
       setIsLoading(true);
       setError(null);
 
-      const data = await storageService.getAutogradeWorkerLogs(); // Fetch data
+      const data = await storageService.getAutogradeWorkerLogs();
 
       const mapped: LogRow[] = data.map((item) => ({
         id: item.id,
@@ -86,9 +63,9 @@ export default function LogsTable() {
         submission_status: item.submission_status,
         autograde_status: item.autograde_status,
         autograde_status_details: item.autograde_status_details,
+        cmid: item.cmid, 
       }));
 
-      // Sort: latest first
       mapped.sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -106,19 +83,17 @@ export default function LogsTable() {
     loadLogs();
   }, []);
 
-
-  // Filtering logic
- 
+  // Filtering
   const filteredData = rows.filter((row) => {
-    const courseMatch = !filters.course_id || String(row.course_id) === filters.course_id;
-    const assignmentMatch = !filters.assignment_name || row.assignment_name === filters.assignment_name;
-    const statusMatch = !filters.autograde_status || row.autograde_status === filters.autograde_status;
-    return courseMatch && assignmentMatch && statusMatch;
+    const c = !filters.course_id || String(row.course_id) === filters.course_id;
+    const a =
+      !filters.assignment_name || row.assignment_name === filters.assignment_name;
+    const s =
+      !filters.autograde_status || row.autograde_status === filters.autograde_status;
+    return c && a && s;
   });
 
-  
-  // Pagination logic
- 
+  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
@@ -128,22 +103,19 @@ export default function LogsTable() {
   const assignmentOptions = uniqueOptions("assignment_name", rows);
   const statusOptions = uniqueOptions("autograde_status", rows);
 
-  
-  // Refresh & Render
-
   return (
     <div className="p-4">
-      {/* Refresh button */}
+      {/* Refresh */}
       <div className="flex justify-end mb-4">
         <button
-          onClick={() => loadLogs()}
-          className="flex items-center gap-2 bg-[#1E2430] text-white px-4 py-2 rounded-lg shadow hover:bg-[#2A3242] transition"
+          onClick={loadLogs}
+          className="flex items-center gap-2 bg-[#1E2430] text-white px-4 py-2 rounded-lg shadow hover:bg-[#2A3242]"
         >
           Refresh
         </button>
       </div>
 
-      {/* Filter dropdowns */}
+      {/* Filters */}
       <div className="flex gap-4 mb-4">
         <select
           className="border p-2"
@@ -155,7 +127,7 @@ export default function LogsTable() {
         >
           <option value="">All Courses</option>
           {courseOptions.map((v) => (
-            <option key={v} value={v}>{v}</option>
+            <option key={v}>{v}</option>
           ))}
         </select>
 
@@ -169,7 +141,7 @@ export default function LogsTable() {
         >
           <option value="">All Assignments</option>
           {assignmentOptions.map((v) => (
-            <option key={v} value={v}>{v}</option>
+            <option key={v}>{v}</option>
           ))}
         </select>
 
@@ -183,13 +155,13 @@ export default function LogsTable() {
         >
           <option value="">All Statuses</option>
           {statusOptions.map((v) => (
-            <option key={v} value={v}>{v}</option>
+            <option key={v}>{v}</option>
           ))}
         </select>
       </div>
 
-      {/* LOGS TABLE */}
-      <table className="w-full border-collapse table-fixed">
+      {/* TABLE */}
+      <table className="w-full table-fixed border-collapse">
         <thead>
           <tr className="border-b bg-gray-100">
             <th className="p-2 text-left">Timestamp</th>
@@ -199,33 +171,38 @@ export default function LogsTable() {
             <th className="p-2 text-left">Learner</th>
             <th className="p-2 text-left">Submission Status</th>
             <th className="p-2 text-left">Autograde Status</th>
-            <th className="p-2 text-left w-64">Details</th>
-            <th className="p-2 text-left w-20">Action</th>
+            <th className="p-2 w-64 text-left">Details</th>
+            <th className="p-2 w-24 text-left">Action</th>
           </tr>
         </thead>
 
         <tbody>
-          {/* Loading row */}
           {isLoading && (
             <tr>
-              <td colSpan={9} className="text-center py-4">Loading logs...</td>
+              <td colSpan={9} className="text-center py-4">
+                Loading logs...
+              </td>
             </tr>
           )}
 
-          {/* Error row */}
           {!isLoading && error && (
             <tr>
-              <td colSpan={9} className="text-center py-4 text-red-500">{error}</td> 
+              <td colSpan={9} className="text-center py-4 text-red-500">
+                {error}
+              </td>
             </tr>
           )}
 
-          {/* Data rows */}
-          {!isLoading && !error && pageData.map((row) => {
-              const moodleUrl = `https://moodle.shaper.co.za/mod/assign/view.php?id=${row.assignment_id}`; 
+          {!isLoading &&
+            !error &&
+            pageData.map((row) => {
+              const viewUrl = `https://moodle.shaper.co.za/mod/assign/view.php?id=${row.cmid}&action=grader&userid=${row.user_id}`;
 
               return (
                 <tr key={row.id} className="border-b">
-                  <td className="p-2">{new Date(row.created_at).toISOString().slice(0, 16).replace('T', ' ')}</td>
+                  <td className="p-2">
+                    {moment(row.created_at).format("YYYY-MM-DD HH:mm")}
+                  </td>
                   <td className="p-2">{timeAgo(row.submitted_at)}</td>
                   <td className="p-2">{row.course_id}</td>
                   <td className="p-2">{row.assignment_name}</td>
@@ -233,24 +210,30 @@ export default function LogsTable() {
                   <td className="p-2 capitalize">{row.submission_status}</td>
                   <td className="p-2 capitalize">{row.autograde_status}</td>
 
+                  {/* Details (2-line clamp) */}
                   <td className="p-2 w-64">
                     <button
-                      disabled={row.autograde_status.toLowerCase() !== 'fail'}
-                      onClick={() => row.autograde_status.toLowerCase() === 'fail' && setSelectedError(row.autograde_status_details)}
-                      className={`text-left w-full ${row.autograde_status.toLowerCase() === 'fail' ? 'text-blue-600 hover:underline' : 'text-gray-500'} whitespace-normal line-clamp-2`}
+                      onClick={() => setSelectedError(row.autograde_status_details)}
+                      className="text-left w-full text-blue-600 hover:underline whitespace-normal overflow-hidden text-ellipsis"
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                      }}
                     >
                       {row.autograde_status_details}
                     </button>
                   </td>
 
-                  <td className="p-2 w-20 whitespace-nowrap">
+                  {/* View Submission */}
+                  <td className="p-2">
                     <a
-                      href={moodleUrl}
+                      href={viewUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
                     >
-                      Open
+                      View Submission
                     </a>
                   </td>
                 </tr>
@@ -269,7 +252,9 @@ export default function LogsTable() {
           Previous
         </button>
 
-        <span>Page {safePage} of {totalPages}</span>
+        <span>
+          Page {safePage} of {totalPages}
+        </span>
 
         <button
           disabled={safePage === totalPages}
@@ -280,7 +265,7 @@ export default function LogsTable() {
         </button>
       </div>
 
-      {/* Error Details Modal */}
+      {/* Modal */}
       {selectedError && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-2xl p-4 rounded shadow">
@@ -289,8 +274,7 @@ export default function LogsTable() {
               {selectedError}
             </pre>
             <button
-              onClick={() => setSelectedError(null)} //
-              
+              onClick={() => setSelectedError(null)}
               className="mt-4 px-4 py-2 bg-gray-700 text-white rounded"
             >
               Close
