@@ -3,11 +3,7 @@ import type { Submission, AutogradeWorkerLog } from "../types/storageTypes";
 const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
 const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
 
-// --- Private Helper Functions ---
 
-/**
- * Fetches a submission by its ID. Returns null if not found.
- */
 async function getSubmission(submissionId: number): Promise<Submission | null> {
     try {
         const response = await fetch(`${BASE_URL}?submission_id=eq.${submissionId}&limit=1`, {
@@ -21,16 +17,13 @@ async function getSubmission(submissionId: number): Promise<Submission | null> {
     }
 }
 
-/**
- * The single source of truth for creating or updating a submission.
- * This function handles all updates atomically.
- */
+
 async function upsertSubmission(submissionId: number, data: Partial<Pick<Submission, 'blocked' | 'comment'>>) {
     try {
         const existing = await getSubmission(submissionId);
         
         if (existing) {
-            // --- UPDATE (PATCH) ---
+      
             const response = await fetch(`${BASE_URL}?submission_id=eq.${submissionId}`, {
                 method: 'PATCH',
                 headers: { 'apiKey': API_KEY, 'Content-Type': 'application/json' },
@@ -41,11 +34,11 @@ async function upsertSubmission(submissionId: number, data: Partial<Pick<Submiss
                 throw new Error(`PATCH failed: ${response.status} ${await response.text()}`);
             }
         } else {
-            // --- CREATE (POST) ---
+        
             const payload = {
                 submission_id: submissionId,
-                blocked: data.blocked ?? false,
-                comment: data.comment ?? null
+                blocked: data.blocked ?? false, 
+                comment: data.comment ?? null  
             };
             const response = await fetch(BASE_URL, {
                 method: 'POST',
@@ -63,11 +56,7 @@ async function upsertSubmission(submissionId: number, data: Partial<Pick<Submiss
     }
 }
 
-// --- Public API ---
 
-/**
- * Fetch all submissions from the unified submissions table.
- */
 async function getAllSubmissions(): Promise<Submission[]> {
     try {
         const response = await fetch(BASE_URL, {
@@ -83,48 +72,38 @@ async function getAllSubmissions(): Promise<Submission[]> {
     }
 }
 
-/**
- * Blocks a submission.
- */
+
 function createBlockedSubmission(submissionId: number) {
     return upsertSubmission(submissionId, { blocked: true });
 }
 
-/**
- * Unblocks a submission.
- */
+
 function removeBlockedSubmission(submissionId: number) {
     return upsertSubmission(submissionId, { blocked: false });
 }
 
-/**
- * Saves a comment for a submission.
- */
+
 function saveSubmissionComment(submissionId: number, comment: string) {
     const normalizedComment = !comment || comment.trim() === "" ? null : comment;
     return upsertSubmission(submissionId, { comment: normalizedComment });
 }
 
-/**
- * Deletes a submission's comment (sets it to null).
- */
+
 function deleteSubmissionComment(submissionId: number) {
     return upsertSubmission(submissionId, { comment: null });
 }
 
-/**
- * Toggles the blocked status of a submission.
- */
+
 async function toggleBlockedStatus(submissionId: number, currentStatus: boolean) {
     return upsertSubmission(submissionId, { blocked: !currentStatus });
 }
 
-// --- Legacy/Compatibility Functions ---
 
 async function getAllBlockedSubmissions() {
     const submissions = await getAllSubmissions();
     return submissions.filter(s => s.blocked);
 }
+
 
 async function getSubmissionComments() {
     const submissions = await getAllSubmissions();
@@ -191,8 +170,7 @@ export default {
     saveSubmissionComment,
     deleteSubmissionComment,
     toggleBlockedStatus,
-
-    // Compatibility exports
+  
     getAllBlockedSubmissions,
     getSubmissionComments,
 
