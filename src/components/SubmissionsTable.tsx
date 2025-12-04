@@ -1,6 +1,7 @@
 import { AgGridReact } from "ag-grid-react";
 import { AgColumn, AllCommunityModule, ModuleRegistry, type CellClickedEvent, type CellEditingStoppedEvent, type ColDef } from "ag-grid-community";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import moodleService from "../utils/moodleService";
 import moment from "moment";
 import Spinner from "./Spinner";
@@ -24,28 +25,77 @@ type RowItemType = {
 }
 
 export default function SubmissionTable() {
-    const [rowData, setRowData] = useState<RowItemType[]>([])
-    const [loading, setLoading] = useState<Boolean>(false)
+    const [rowData, setRowData] = useState<RowItemType[]>([]);
+    const [courses, setCourses] = useState<string[]>(['all']);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // State for filters, initialized from URL search params
+    const [courseFilter, setCourseFilter] = useState<string>(searchParams.get('course') || 'all');
+    const [blockedFilter, setBlockedFilter] = useState<string>(searchParams.get('blocked') || 'all');
+    const [commentFilter, setCommentFilter] = useState<string>(searchParams.get('comment') || 'all');
 
     const [colDefs] = useState<ColDef[]>([
         { field: 'submissionId', hide: true },
         {
             field: 'course',
-            filter: "agTextColumnFilter",
             cellStyle: { color: "#0084d1", cursor: "pointer" }
         },
-        { field: 'assignment', cellStyle: { color: "#0084d1", cursor: "pointer" }, flex: 1 },
-        { field: 'type', width: 150, resizable: false, flex: 0, filter: "agTextColumnFilter", },
-        { field: 'learner', width: 100, resizable: false, flex: 0 },
-        { field: 'submitted', width: 200, resizable: false, flex: 0, valueFormatter: (param) => moment(param.value).fromNow() },
-        { field: 'status', width: 100, resizable: false, flex: 0 },
-        { field: 'blocked', width: 100, resizable: false, flex: 0, editable: true },
-        { field: "comment", editable: true, cellStyle: { color: "red" } },
-        { field: 'action', width: 150, resizable: false, flex: 0, cellStyle: { color: "#0084d1", cursor: "pointer" }, sortable: false },
+        { 
+            field: 'assignment', 
+            cellStyle: { color: "#0084d1", cursor: "pointer" }, 
+            flex: 1 
+        },
+        { 
+            field: 'type', 
+            width: 150, 
+            resizable: false, 
+            flex: 0 
+        },
+        { 
+            field: 'learner', 
+            width: 100, 
+            resizable: false, 
+            flex: 0 
+        },
+        { 
+            field: 'submitted', 
+            width: 200, 
+            resizable: false, 
+            flex: 0, 
+            valueFormatter: (param) => moment(param.value).fromNow() 
+        },
+        { 
+            field: 'status', 
+            width: 100, 
+            resizable: false, 
+            flex: 0 
+        },
+        { 
+            field: 'blocked', 
+            width: 100, 
+            resizable: false, 
+            flex: 0, 
+            editable: true,
+            valueFormatter: (params) => params.value ? 'Yes' : 'No',
+        },
+        { 
+            field: 'comment', 
+            editable: true, 
+            cellStyle: { color: "red" },
+            valueFormatter: (params) => params.value || '',
+        },
+        { 
+            field: 'action', 
+            width: 150, 
+            resizable: false, 
+            flex: 0, 
+            cellStyle: { color: "#0084d1", cursor: "pointer" }, 
+            sortable: false 
+        },
         { field: 'courseUrl', hide: true },
         { field: 'moduleUrl', hide: true },
         { field: 'gradingUrl', hide: true },
-
     ]);
 
     const defaultColDef = { flex: 1 };
@@ -84,6 +134,10 @@ export default function SubmissionTable() {
                 };
             });
 
+            // 5. Update state
+            const uniqueCourses = ['all', ...new Set(submissionRows.map(row => row.course))];
+            setCourses(uniqueCourses);
+            
             setRowData(submissionRows);
         } catch (error) {
         } finally {
@@ -95,9 +149,84 @@ export default function SubmissionTable() {
         fetchData();
     }, []);
 
+    // Effect to initialize filters from URL params
+    useEffect(() => {
+        
+    }, []);
+
+    // Filter the data based on the current filters
+    const filteredData = useMemo(() => {
+        return rowData.filter(row => {
+            const courseMatch = courseFilter === 'all' || row.course === courseFilter;
+            const blockedMatch = blockedFilter === 'all' || 
+                (blockedFilter === 'blocked' && row.blocked) || 
+                (blockedFilter === 'unblocked' && !row.blocked);
+            const commentMatch = commentFilter === 'all' || 
+                (commentFilter === 'with' && row.comment && row.comment.trim() !== '') ||
+                (commentFilter === 'without' && (!row.comment || row.comment.trim() === ''));
+            
+            return courseMatch && blockedMatch && commentMatch;
+        });
+    }, [rowData, courseFilter, blockedFilter, commentFilter]);
+
+    // Update URL when filters change
+    useEffect(() => {
+        const params = new URLSearchParams();
+        
+        if (courseFilter !== 'all') params.set('course', courseFilter);
+        if (blockedFilter !== 'all') params.set('blocked', blockedFilter);
+        if (commentFilter !== 'all') params.set('comment', commentFilter);
+        
+        setSearchParams(params, { replace: true });
+    }, [courseFilter, blockedFilter, commentFilter, setSearchParams]);
+
     return (
         <div>
-            <div className="flex justify-end items-center mb-3">
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex gap-4 items-center">
+                    {/* Course Filter */}
+                    <div>
+                        <label htmlFor="course-filter" className="mr-2 text-black font-semibold">Filter By</label>
+                        <select
+                            id="course-filter"
+                            value={courseFilter}
+                            onChange={(e) => setCourseFilter(e.target.value)}
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
+                        >
+                            {courses.map(course => (
+                                <option key={course} value={course}>{course === 'all' ? 'All Courses' : course}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Blocked Filter */}
+                    <div>
+                        <select
+                            id="blocked-filter"
+                            value={blockedFilter}
+                            onChange={(e) => setBlockedFilter(e.target.value)}
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
+                        >
+                            <option value="all">All Status</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="unblocked">Unblocked</option>
+                        </select>
+                    </div>
+
+                    {/* Comment Filter */}
+                    <div>
+                        <select
+                            id="comment-filter"
+                            value={commentFilter}
+                            onChange={(e) => setCommentFilter(e.target.value)}
+                            className="border-2 border-gray-300 bg-white py-1 px-3 rounded-lg text-black"
+                        >
+                            <option value="all">All Comments</option>
+                            <option value="with">With Comment</option>
+                            <option value="without">Without Comment</option>
+                        </select>
+                    </div>
+                </div>
                 <button disabled={!!loading} onClick={() => fetchData()} title="refresh submission data" className="border-2 border-gray-100 bg-gray-800 py-1 px-3 rounded-lg text-white flex items-center gap-2 hover:bg-gray-700 active:border-blue-400 disabled:opacity-50 disabled:border-none">
                     Refresh
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-arrow-clockwise" viewBox="0 0 16 16">
@@ -115,7 +244,7 @@ export default function SubmissionTable() {
                     </div>
                 }
                 {!loading && <AgGridReact
-                    rowData={rowData}
+                    rowData={filteredData}
                     columnDefs={colDefs}
                     defaultColDef={defaultColDef}
                     onCellClicked={(event: CellClickedEvent) => {
