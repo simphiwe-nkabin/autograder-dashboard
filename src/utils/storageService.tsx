@@ -1,4 +1,4 @@
-import type { Submission } from "../types/storageTypes";
+import type { Submission, AutogradeWorkerLog } from "../types/storageTypes";
 
 const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
 const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
@@ -110,6 +110,59 @@ async function getSubmissionComments() {
     return submissions.filter(s => s.comment);
 }
 
+// --- Old blocked table functions (KEEP for backward compatibility) ---
+
+async function removeBlockedSubmissionLegacy(id: number) {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission?submission_id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { 'apiKey': import.meta.env.VITE_SUPABASE_APIKEY }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+}
+
+async function updateBlockedSubmissionComment(id: number, comment: string) {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_BASEURL}/blocked_submission?submission_id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+            'apiKey': import.meta.env.VITE_SUPABASE_APIKEY,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ comment })
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+}
+
+// --- Autograde Worker Logs ---
+
+export async function getAutogradeWorkerLogs(): Promise<AutogradeWorkerLog[]> {
+    const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_BASEURL}/autograde_worker_log?select=*`,
+        {
+            method: 'GET',
+            headers: {
+                apikey: import.meta.env.VITE_SUPABASE_APIKEY as string
+            }
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data as AutogradeWorkerLog[];
+}
+
+
+
 export default {
     getAllSubmissions,
     createBlockedSubmission,
@@ -119,5 +172,12 @@ export default {
     toggleBlockedStatus,
   
     getAllBlockedSubmissions,
-    getSubmissionComments
+    getSubmissionComments,
+
+    // Old table compatibility
+    removeBlockedSubmissionLegacy,
+    updateBlockedSubmissionComment,
+
+    // Logs
+    getAutogradeWorkerLogs
 };
