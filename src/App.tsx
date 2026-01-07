@@ -8,7 +8,7 @@ import Logs from './views/Logs'
 
 function App() {
 
-  return (
+	return (
 		<div className="flex flex-col gap-5">
 			<Header />
 			<main className="mx-2 md:mx-10">
@@ -24,5 +24,5 @@ function App() {
 
 
 export default withAuthenticationRequired(App)
-//export default App
+// export default App
 
