@@ -4,8 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import moodleService from "../utils/moodleService";
 import moment from "moment";
-import Spinner from "./Spinner";
 import storageService from "../utils/storageService";
+import LoadingBar from "./LoadingBar";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -29,6 +29,8 @@ export default function SubmissionTable() {
     const [courses, setCourses] = useState<string[]>(['all']);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchParams, setSearchParams] = useSearchParams();
+    const [loadingInfo, setloadingInfo] = useState<string>('');
+    const [loadingValue, setLoadingValue] = useState<number>(0);
 
     // State for filters, initialized from URL search params
     const [courseFilter, setCourseFilter] = useState<string>(searchParams.get('course') || 'all');
@@ -41,57 +43,57 @@ export default function SubmissionTable() {
             field: 'course',
             cellStyle: { color: "#0084d1", cursor: "pointer" }
         },
-        { 
-            field: 'assignment', 
-            cellStyle: { color: "#0084d1", cursor: "pointer" }, 
-            flex: 1 
+        {
+            field: 'assignment',
+            cellStyle: { color: "#0084d1", cursor: "pointer" },
+            flex: 1
         },
-        { 
-            field: 'type', 
-            width: 150, 
-            resizable: false, 
-            flex: 0 
+        {
+            field: 'type',
+            width: 150,
+            resizable: false,
+            flex: 0
         },
-        { 
-            field: 'learner', 
-            width: 100, 
-            resizable: false, 
-            flex: 0 
+        {
+            field: 'learner',
+            width: 100,
+            resizable: false,
+            flex: 0
         },
-        { 
-            field: 'submitted', 
-            width: 200, 
-            resizable: false, 
-            flex: 0, 
-            valueFormatter: (param) => moment(param.value).fromNow() 
+        {
+            field: 'submitted',
+            width: 200,
+            resizable: false,
+            flex: 0,
+            valueFormatter: (param) => moment(param.value).fromNow()
         },
-        { 
-            field: 'status', 
-            width: 100, 
-            resizable: false, 
-            flex: 0 
+        {
+            field: 'status',
+            width: 100,
+            resizable: false,
+            flex: 0
         },
-        { 
-            field: 'blocked', 
-            width: 100, 
-            resizable: false, 
-            flex: 0, 
+        {
+            field: 'blocked',
+            width: 100,
+            resizable: false,
+            flex: 0,
             editable: true,
             valueFormatter: (params) => params.value ? 'Yes' : 'No',
         },
-        { 
-            field: 'comment', 
-            editable: true, 
+        {
+            field: 'comment',
+            editable: true,
             cellStyle: { color: "red" },
             valueFormatter: (params) => params.value || '',
         },
-        { 
-            field: 'action', 
-            width: 150, 
-            resizable: false, 
-            flex: 0, 
-            cellStyle: { color: "#0084d1", cursor: "pointer" }, 
-            sortable: false 
+        {
+            field: 'action',
+            width: 150,
+            resizable: false,
+            flex: 0,
+            cellStyle: { color: "#0084d1", cursor: "pointer" },
+            sortable: false
         },
         { field: 'courseUrl', hide: true },
         { field: 'moduleUrl', hide: true },
@@ -102,14 +104,22 @@ export default function SubmissionTable() {
 
     async function fetchData() {
         setLoading(true);
+        setLoadingValue(0);
         try {
             // 1. Fetch all Moodle submissions and add the 'type' property
+            setloadingInfo('fetching assignments')
             const moodleAssignments = (await moodleService.getAssignmentSubmissions()).map(s => ({ ...s, type: 'assignment' }));
+            setLoadingValue(1)
+
+            setloadingInfo('fetching quizzes')
             const moodleQuizzes = (await moodleService.getQuizSubmissions()).map(s => ({ ...s, type: 'quiz' }));
+            setLoadingValue(2)
             const allMoodleSubmissions = [...moodleAssignments, ...moodleQuizzes];
 
             // 2. Fetch all submission metadata (blocked status, comments) from our DB in one call
+            setloadingInfo('fetching metadata')
             const localSubmissions = await storageService.getAllSubmissions();
+            setLoadingValue(3)
 
             // 3. Create a lookup map for efficient access to local data
             const localSubmissionsMap = new Map(localSubmissions.map(s => [s.submission_id, s]));
@@ -137,11 +147,13 @@ export default function SubmissionTable() {
             // 5. Update state
             const uniqueCourses = ['all', ...new Set(submissionRows.map(row => row.course))];
             setCourses(uniqueCourses);
-            
             setRowData(submissionRows);
         } catch (error) {
         } finally {
-            setLoading(false);
+            setTimeout(() => {
+                setLoading(false);
+                setloadingInfo('')
+            }, 1000);
         }
     }
 
@@ -149,22 +161,17 @@ export default function SubmissionTable() {
         fetchData();
     }, []);
 
-    // Effect to initialize filters from URL params
-    useEffect(() => {
-        
-    }, []);
-
     // Filter the data based on the current filters
     const filteredData = useMemo(() => {
         return rowData.filter(row => {
             const courseMatch = courseFilter === 'all' || row.course === courseFilter;
-            const blockedMatch = blockedFilter === 'all' || 
-                (blockedFilter === 'blocked' && row.blocked) || 
+            const blockedMatch = blockedFilter === 'all' ||
+                (blockedFilter === 'blocked' && row.blocked) ||
                 (blockedFilter === 'unblocked' && !row.blocked);
-            const commentMatch = commentFilter === 'all' || 
+            const commentMatch = commentFilter === 'all' ||
                 (commentFilter === 'with' && row.comment && row.comment.trim() !== '') ||
                 (commentFilter === 'without' && (!row.comment || row.comment.trim() === ''));
-            
+
             return courseMatch && blockedMatch && commentMatch;
         });
     }, [rowData, courseFilter, blockedFilter, commentFilter]);
@@ -172,11 +179,11 @@ export default function SubmissionTable() {
     // Update URL when filters change
     useEffect(() => {
         const params = new URLSearchParams();
-        
+
         if (courseFilter !== 'all') params.set('course', courseFilter);
         if (blockedFilter !== 'all') params.set('blocked', blockedFilter);
         if (commentFilter !== 'all') params.set('comment', commentFilter);
-        
+
         setSearchParams(params, { replace: true });
     }, [courseFilter, blockedFilter, commentFilter, setSearchParams]);
 
@@ -236,11 +243,11 @@ export default function SubmissionTable() {
                 </button>
             </div>
 
-            <div style={{ width: "100%", height: 500 }}>
+            <div className="w-full" style={{ height: 500 }}>
                 {loading &&
                     <div className="text-center">
-                        <Spinner />
-                        <p>fetching submissions</p>
+                        <p className="flex gap-1 justify-center text-sm text-slate-700">{loadingInfo}...</p>
+                        <LoadingBar max={3} value={loadingValue} />
                     </div>
                 }
                 {!loading && <AgGridReact
