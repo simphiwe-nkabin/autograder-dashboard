@@ -47,37 +47,35 @@ async function getAssignmentSubmissions(): Promise<SubmissionType[]> {
     const submissions: SubmissionType[] = []
     for (let i = 0; i < assignments.length; i++) {
         const assigment = assignments[i];
-        const moodleSubmissions = await getSubmissionsByAssignment(assigment.id)
+        const moodleSubmissions = await getSubmissionsByAssignment(assigment.id, 'submitted', 'notgraded')
         for (let j = 0; j < moodleSubmissions.length; j++) {
 
             const moodleSubmission = moodleSubmissions[j];
-            if (moodleSubmission.gradingstatus !== 'graded' && moodleSubmission.status == 'submitted') {
-                submissions.push({
-                    courseId: assigment.courseId,
-                    courseName: assigment.courseName,
-                    coursModuleId: assigment.coursModuleId,
-                    submissionName: assigment.name,
-                    id: moodleSubmission.id,
-                    userId: moodleSubmission.userid,
-                    attemptNumber: moodleSubmission.attemptnumber,
-                    submittedAt: moodleSubmission.timemodified * 1000,
-                    status: moodleSubmission.status,
-                    submissionType: "assignment",
-                    gradingUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${assigment.coursModuleId}&action=grader&userid=${moodleSubmission.userid}`,
-                    courseUrl: `https://moodle.shaper.co.za/course/view.php?id=${assigment.courseId}`,
-                    moduleUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${assigment.coursModuleId}`
-                })
-            }
+            submissions.push({
+                courseId: assigment.courseId,
+                courseName: assigment.courseName,
+                coursModuleId: assigment.coursModuleId,
+                submissionName: assigment.name,
+                id: moodleSubmission.id,
+                userId: moodleSubmission.userid,
+                attemptNumber: moodleSubmission.attemptnumber,
+                submittedAt: moodleSubmission.timemodified * 1000,
+                status: moodleSubmission.status,
+                submissionType: "assignment",
+                gradingUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${assigment.coursModuleId}&action=grader&userid=${moodleSubmission.userid}`,
+                courseUrl: `https://moodle.shaper.co.za/course/view.php?id=${assigment.courseId}`,
+                moduleUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${assigment.coursModuleId}`
+            })
         }
     }
 
     return submissions;
 }
 
-async function getSubmissionsByAssignment(assignmentId: number) {
+async function getSubmissionsByAssignment(assignmentId: number, status: '' | 'new' | 'draft' | 'submitted' = "", gradingStatus: '' | 'graded' | 'notgraded' = "") {
     let response;
     try {
-        response = await fetch(getUrl(WSFunctions.mod_assign_get_submissions) + `&assignmentids[0]=${assignmentId}`)
+        response = await fetch(getUrl(WSFunctions.mod_assign_get_submissions) + `&assignmentids[0]=${assignmentId}&status=${status}`)
     } catch (error) {
         console.log(`Error: Could not fetch submissions by assignment ${assignmentId}`, error);
         return []
@@ -92,7 +90,7 @@ async function getSubmissionsByAssignment(assignmentId: number) {
     const result: MoodleAssignmentSubmissionType = await response.json();
     if (!result?.assignments?.length) return []
     if (!Array.isArray(result.assignments[0].submissions)) return []
-    return result.assignments[0].submissions
+    return result.assignments[0].submissions.filter(sub => gradingStatus ? sub.gradingstatus == gradingStatus : true)
 }
 
 async function getAllAssignments(): Promise<AssignmentMetaType[]> {
