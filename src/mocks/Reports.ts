@@ -47,7 +47,7 @@ export const mockReportData: Record<string, LearnerReport[]> = {
         { title: 'Forum: Week 1 Discussion', status: 'On time' },
         { title: 'H5P: Interactive Quiz', status: 'Late', score: 75 },
       ],
-      stats: { done: 3, late: 1, missed: 0, strikes: 1 }
+      stats: { done: 5, late: 1, missed: 0, strikes: 1 }
     }
   ],
   coh_003: []
