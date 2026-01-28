@@ -4,9 +4,10 @@ import type { LearnerReport } from "../types/Reports";
 
 
 export const mockCohorts = [
-  { id: 'coh_001', name: 'Data Science Cohort Q1 2026' },
-  { id: 'coh_002', name: 'AI Fundamentals Cohort' },
-  { id: 'coh_003', name: 'Machine Learning Bootcamp' }
+	{ id: "coh_001", name: "Data Science Cohort Q1 2026" },
+	{ id: "coh_002", name: "AI Fundamentals Cohort" },
+	{ id: "coh_003", name: "Machine Learning Bootcamp" },
+	{ id: "coh_004", name: "Full Stack" },
 ];
 
 export const mockReportData: Record<string, LearnerReport[]> = {

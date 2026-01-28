@@ -1,12 +1,17 @@
-import React from 'react';
+import type { Learner } from "../types/Reports";
 
-const ModalLearnerDetails = ({ onClose, selectedLearner }) => {
+interface ModalLearnerDetailsProps {
+  onClose: () => void;
+  selectedLearner: Learner | null;
+}
+
+const ModalLearnerDetails = ({ onClose, selectedLearner }: ModalLearnerDetailsProps) => {
   if (!selectedLearner) return null;
 
   const { name, cohort, stats, deliverables } = selectedLearner;
 
   // Determine status text and color
-  const getStatusDisplay = (status, lateDays = 0) => {
+  const getStatusDisplay = (status: string, lateDays = 0) => {
     switch (status) {
       case 'On time':
         return <span className="text-green-600">On time</span>;

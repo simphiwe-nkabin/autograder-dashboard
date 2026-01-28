@@ -1,7 +1,9 @@
 
-import { useState } from 'react';
-import { mockCohorts, mockReportData } from '../mocks/reports';
+import { useState } from "react";
+
 import ModalLearnerDetails from "./ModalLearnerDetails";
+import { mockCohorts, mockReportData } from "../mocks/Reports";
+import type { LearnerReport } from "../types/Reports";
 
 const ReportsTable = () => {
 	//Track which cohort is selected
@@ -9,11 +11,13 @@ const ReportsTable = () => {
 
 	// learner modal details state
 	const [showLearnerModal, setShowLearnerModal] = useState<boolean>(false);
-  const [selectedLearner, setSelectedLearner] = useState(null);
+  const [selectedLearner, setSelectedLearner] = useState<LearnerReport | null>(
+		null,
+	);
 
 
 	// show/hide learner modal
-	const toggleLearnerModal = (learner) => {
+	const toggleLearnerModal = (learner: LearnerReport | null) => {
 		setSelectedLearner(learner);
 		setShowLearnerModal(!showLearnerModal);
 	};
@@ -183,7 +187,19 @@ const ReportsTable = () => {
 					</p>
 				)}
 			</div>
-			{showLearnerModal && <ModalLearnerDetails onClose={() => setShowLearnerModal(false)} selectedLearner={selectedLearner} />}
+			{showLearnerModal && (
+				<ModalLearnerDetails
+					onClose={() => setShowLearnerModal(false)}
+					selectedLearner={
+						selectedLearner && selectedCohort
+							? {
+									...selectedLearner,
+									cohort: selectedCohort.name,
+							  }
+							: null
+					}
+				/>
+			)}
 		</>
 	);
 };;
