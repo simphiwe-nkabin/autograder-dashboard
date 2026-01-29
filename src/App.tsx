@@ -5,9 +5,10 @@ import Home from './views/Home'
 import { withAuthenticationRequired } from '@auth0/auth0-react'
 import Submissions from './views/Submissions'
 import Logs from './views/Logs'
+import Reports from './components/ReportsTable'
+
 
 function App() {
-
 	return (
 		<div className="flex flex-col gap-5">
 			<Header />
@@ -16,6 +17,7 @@ function App() {
 					<Route index element={<Home />} />
 					<Route path="/submissions" element={<Submissions />} />
 					<Route path="/Logs" element={<Logs />} />
+					<Route path="/Reports" element={<Reports />} />
 				</Routes>
 			</main>
 		</div>
