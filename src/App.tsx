@@ -24,6 +24,11 @@ function App() {
 	);
 }
 
-export default withAuthenticationRequired(App)
-//export default App
+let exportFunction = withAuthenticationRequired(App)
+
+if (import.meta.env.VITE_NODE_ENV == 'develop') {
+	exportFunction = App
+}
+
+export default exportFunction
 
