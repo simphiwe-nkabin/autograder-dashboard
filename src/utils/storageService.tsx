@@ -163,7 +163,7 @@ export async function getAutogradeWorkerLogs(): Promise<AutogradeWorkerLog[]> {
 
 // ─── Fetch Compliance Data from Supabase ────────────────────────
 
-const COMPLIANCE_BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
+const COMPLIANCE_BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/grade_reports`;
 const SUPABASE_API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
 
 

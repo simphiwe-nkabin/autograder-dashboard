@@ -1,24 +1,23 @@
+
+
 import { useState, useEffect, useMemo } from 'react';
 import ModalLearnerDetails from './ModalLearnerDetails';
-import { getComplianceData } from '../utils/storageService'; // Function to fetch data from Supabase
-import type { Learner } from '../types/Reports'; // Your existing Learner interface
+import { getComplianceData } from '../utils/storageService';
+import type { Learner } from '../types/Reports';
 
-// ─── Raw Data Type (from Moodle plugin → Supabase) ───────────────────
-
+// ─── Raw Data Type (normalized to strings) ────────────────────────────
 interface MoodleRawRecord {
-  groupname: string;        
-  userid: string;           
+  groupname: string;
+  userid: string;
   firstname: string;
   lastname: string;
-  activityname: string;     // Quiz/assignment title
-  grade: string;            
-  duedate: string;          // Unix timestamp as string
-  submissiondate: string;   // Unix timestamp as string
+  activityname: string;
+  grade: string;
+  duedate: string;
+  submissiondate: string;
 }
 
-// ─── Helper: Safely Parse Unix Timestamps ─────────────────────────────
-// Converts string/number timestamps to JS number or null.
-// Handles common invalid values: "", "0", "null", undefined.
+// ─── Helper: Parse Timestamp Safely ───────────────────────────────────
 const parseTimestamp = (value: string | number | null | undefined): number | null => {
   if (value == null || value === '' || value === '0' || value === 'null') return null;
   const num = typeof value === 'string' ? parseInt(value, 10) : value;
@@ -27,65 +26,97 @@ const parseTimestamp = (value: string | number | null | undefined): number | nul
 
 // ─── Main Component ───────────────────────────────────────────────────
 const ReportsTable = () => {
-
   const [moodleData, setMoodleData] = useState<MoodleRawRecord[]>([]);
-
-  // State: which cohort is selected in dropdown
   const [selectedCohortId, setSelectedCohortId] = useState<string>('');
-
-  // State: modal visibility & selected learner
   const [showLearnerModal, setShowLearnerModal] = useState<boolean>(false);
   const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
 
-  // ─── EFFECT: Fetch Compliance Data on Mount ─────────────────────────
-  // Calls storageService.getComplianceData() → fetches from /submissions
-  
+  // ─── EFFECT: Fetch and Normalize Data ───────────────────────────────
   useEffect(() => {
+    console.log('🔍 ReportsTable: Starting fetch from /grade_reports...');
+    
     getComplianceData()
       .then(data => {
-        // Validate each record has required fields before using
-        const validData: MoodleRawRecord[] = data.filter((item: any): item is MoodleRawRecord =>
-          typeof item.groupname === 'string' &&
-          typeof item.userid === 'string' &&
-          typeof item.firstname === 'string' &&
-          typeof item.lastname === 'string' &&
-          typeof item.activityname === 'string' &&
-          typeof item.grade === 'string' &&
-          typeof item.duedate === 'string' &&
-          typeof item.submissiondate === 'string'
+        console.log('✅ ReportsTable: Received raw', data.length, 'records');
+        if (data.length > 0) {
+          console.log('🔍 Sample raw record:', data[0]);
+        }
+
+        // Normalize all records to expected shape
+        const normalizedData: MoodleRawRecord[] = data.map((item: any) => ({
+          groupname: String(item.groupname ?? item.cohort ?? '').trim(),
+          userid: String(item.userid ?? item.user_id ?? item.id ?? '').trim(),
+          firstname: String(
+            item.firstname ??
+            item.first_name ??
+            (item.fullname ? item.fullname.split(' ')[0] : '') ??
+            ''
+          ).trim(),
+          lastname: String(
+            item.lastname ??
+            item.last_name ??
+            (item.fullname ? item.fullname.split(' ').slice(1).join(' ') : '') ??
+            ''
+          ).trim(),
+          activityname: String(
+            item.activityname ??
+            item.name ??
+            item.title ??
+            item.quiz_name ??
+            ''
+          ).trim(),
+          grade: String(item.grade ?? item.score ?? '0.00').trim(),
+          duedate: String(
+            item.duedate ??
+            item.due_date ??
+            item.deadline ??
+            item.timeclose ??
+            ''
+          ).trim(),
+          submissiondate: String(
+            item.submissiondate ??
+            item.submitted_at ??
+            item.timefinish ??
+            item.timemodified ??
+            ''
+          ).trim(),
+        }));
+
+        // Filter out invalid records
+        const validData = normalizedData.filter(
+          item =>
+            item.groupname !== '' &&
+            item.userid !== '' &&
+            item.activityname !== ''
         );
+
+        console.log('✅ ReportsTable: Valid records after normalization:', validData.length);
+        if (validData.length > 0) {
+          console.log('📌 Sample normalized record:', validData[0]);
+        }
         setMoodleData(validData);
-        console.log(' Loaded', validData.length, 'valid compliance records');
       })
       .catch(err => {
-        console.error('Failed to load compliance data:', err);
+        console.error('❌ ReportsTable: Failed to load compliance ', err);
         setMoodleData([]);
       });
   }, []);
 
-  // ─── MEMO: Extract Unique Cohorts ───────────────────────────────────
-  // Builds list of { id, name } for dropdown from `groupname` field.
+  // ─── MEMO: Extract Cohorts ──────────────────────────────────────────
   const cohorts = useMemo<{ id: string; name: string }[]>(() => {
     const uniqueGroupnames = [...new Set(moodleData.map(item => item.groupname))];
     return uniqueGroupnames.map(name => ({ id: name, name }));
   }, [moodleData]);
 
-  // ─── MEMO: Transform Raw Data → Structured Learners ─────────────────
-  // For selected cohort:
-  // 1. Collect all records
-  // 2. Get list of all deliverables (quizzes)
-  // 3. Group by learner
-  // 4. For each learner, compute status per deliverable + summary stats
+  // ─── MEMO: Transform to Learners ─────────────────────────────────────
   const { selectedCohort, learners } = useMemo<{
     selectedCohort: { id: string; name: string } | null;
     learners: Learner[];
   }>(() => {
-    // If no cohort selected, return empty
     if (!selectedCohortId) {
       return { selectedCohort: null, learners: [] };
     }
 
-    // Filter records for selected cohort
     const cohortItems = moodleData.filter(item => item.groupname === selectedCohortId);
     if (cohortItems.length === 0) {
       return {
@@ -94,57 +125,47 @@ const ReportsTable = () => {
       };
     }
 
-    // Get all unique deliverables (quiz titles) in this cohort
     const deliverableTitles = [...new Set(cohortItems.map(item => item.activityname))].sort();
 
-    // Group records by learner (userid + name)
     const learnerMap = new Map<string, Omit<Learner, 'deliverables' | 'stats'>>();
     cohortItems.forEach(item => {
       const key = `${item.userid}|${item.firstname}|${item.lastname}`;
       if (!learnerMap.has(key)) {
         learnerMap.set(key, {
           id: item.userid,
-          name: `${item.firstname} ${item.lastname}`,
+          name: `${item.firstname} ${item.lastname}`.trim() || 'Unknown User',
           cohort: item.groupname,
         });
       }
     });
 
-    // Build full learner objects with deliverables & stats
     const learners: Learner[] = Array.from(learnerMap.entries()).map(([key, base]) => {
       const rawRecords = cohortItems.filter(
         item => `${item.userid}|${item.firstname}|${item.lastname}` === key
       );
 
-      // Initialize deliverables array and stats counters
-      const deliverables: { title: string; status: "On time" | "Late" | "Missed" | "Pending"; score: number | undefined; submittedDate: string; lateDays: number; }[] = [];
+      const deliverables = [];
       let done = 0, late = 0, missed = 0, strikes = 0;
 
-      // Process each expected deliverable
       deliverableTitles.forEach(title => {
         const record = rawRecords.find(r => r.activityname === title);
         const duedate = parseTimestamp(record?.duedate);
         const submissiondate = parseTimestamp(record?.submissiondate);
 
-        // Default state
         let status: 'On time' | 'Late' | 'Missed' | 'Pending' = 'Pending';
         let submittedDateStr = '—';
         let lateDays = 0;
 
-        // Logic to determine status
         if (duedate == null) {
-          // No due date → Pending (not counted in stats)
           status = 'Pending';
           if (submissiondate) {
             submittedDateStr = new Date(submissiondate * 1000).toLocaleDateString();
           }
         } else if (!record || submissiondate == null) {
-          // Has due date but no submission → Missed
           status = 'Missed';
           missed++;
           strikes++;
         } else {
-          // Has due date and submission → compare dates
           const due = new Date(duedate * 1000);
           const submitted = new Date(submissiondate * 1000);
           submittedDateStr = submitted.toLocaleDateString();
@@ -161,11 +182,9 @@ const ReportsTable = () => {
           }
         }
 
-        // Parse grade safely
         const score = record?.grade ? parseFloat(record.grade) : undefined;
         const formattedScore = score != null && !isNaN(score) ? Math.round(score) : undefined;
 
-        // Push deliverable object
         deliverables.push({
           title,
           status,
@@ -175,7 +194,6 @@ const ReportsTable = () => {
         });
       });
 
-      // Return full learner object
       return {
         ...base,
         deliverables,
@@ -189,24 +207,20 @@ const ReportsTable = () => {
     };
   }, [selectedCohortId, moodleData]);
 
-  // ─── Modal Toggle Handler ────────────────────────────────────────────
+  // ─── Handlers ────────────────────────────────────────────────────────
   const toggleLearnerModal = (learner: Learner) => {
     setSelectedLearner(learner);
     setShowLearnerModal(true);
   };
 
-  // ─── CSV Export Handler ──────────────────────────────────────────────
-  // Exports full data: one column per quiz, plus summary stats.
   const handleExportCSV = () => {
     if (!selectedCohort || learners.length === 0) return;
 
-    // Build header row
     const headers = ['Learner'];
     const allDeliverables = learners[0]?.deliverables || [];
     allDeliverables.forEach(d => headers.push(d.title));
     headers.push('Deliverables Done', 'Late Count', 'Missed Count', 'Total Strikes');
 
-    // Build data rows
     const rows = learners.map(learner => {
       const row = [learner.name];
       learner.deliverables.forEach(d => {
@@ -223,14 +237,12 @@ const ReportsTable = () => {
       return row;
     });
 
-    // Generate CSV content
     const csvLines = [
       headers.join(','),
       ...rows.map(r => r.map(cell => `"${cell}"`).join(','))
     ];
     const csvContent = csvLines.join('\n');
 
-    // Trigger download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -241,12 +253,11 @@ const ReportsTable = () => {
     document.body.removeChild(link);
   };
 
-  // ─── RENDER: UI ──────────────────────────────────────────────────────
+  // ─── RENDER ──────────────────────────────────────────────────────────
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Cohort Compliance Reports</h1>
 
-      {/* Cohort selector + Export button */}
       <div className="mb-6 flex gap-4 items-center">
         <label className="font-medium">Select Cohort:</label>
         <select
@@ -273,7 +284,7 @@ const ReportsTable = () => {
         )}
       </div>
 
-      {/* Always render table shell (even when empty) */}
+      {/* Always render table shell */}
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse border border-gray-300">
           <thead>
@@ -288,7 +299,6 @@ const ReportsTable = () => {
           <tbody>
             {selectedCohort ? (
               learners.length > 0 ? (
-                // Render learner rows
                 learners.map(learner => (
                   <tr
                     key={learner.id}
@@ -305,17 +315,15 @@ const ReportsTable = () => {
                   </tr>
                 ))
               ) : (
-                // Empty cohort message
                 <tr>
                   <td colSpan={5} className="border p-8 text-center text-gray-500 italic">
                     {moodleData.length === 0
-                      ? "No compliance data found in Supabase. Ensure the Moodle plugin is sending data to `/submissions`."
+                      ? "No compliance data found. Ensure Moodle plugin sends to `/grade_reports`."
                       : "No learners found for this cohort."}
                   </td>
                 </tr>
               )
             ) : (
-              // No cohort selected
               <tr>
                 <td colSpan={5} className="border p-8 text-center text-gray-500 italic">
                   Select a cohort to view compliance reports.
@@ -326,7 +334,6 @@ const ReportsTable = () => {
         </table>
       </div>
 
-      {/* Modal */}
       {showLearnerModal && selectedLearner && (
         <ModalLearnerDetails
           onClose={() => setShowLearnerModal(false)}

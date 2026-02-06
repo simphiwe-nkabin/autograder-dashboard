@@ -24,12 +24,12 @@ function App() {
 	);
 }
 
-// let exportFunction = withAuthenticationRequired(App)
+let exportFunction = withAuthenticationRequired(App)
 
-// if (import.meta.env.VITE_NODE_ENV == 'develop') {
-// 	exportFunction = App
-// }
+ if (import.meta.env.VITE_NODE_ENV == 'develop') {
+ 	exportFunction = App
+ }
 
-// export default exportFunction
+ export default exportFunction
 
-export default App
+
