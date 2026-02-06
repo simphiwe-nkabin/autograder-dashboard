@@ -28,7 +28,7 @@ const ModalLearnerDetails: React.FC<ModalLearnerDetailsProps> = ({ onClose, sele
 
   const isAtRisk = stats.strikes >= 3 || stats.missed > 0;
   const statusText = isAtRisk ? (
-    <span className="text-red-600 font-semibold">🚨 At Risk</span>
+    <span className="text-red-600 font-semibold"> At Risk</span>
   ) : (
     <span className="text-green-600">Good Standing</span>
   );
