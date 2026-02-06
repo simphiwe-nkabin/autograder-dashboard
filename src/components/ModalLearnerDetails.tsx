@@ -1,12 +1,19 @@
 import React from 'react';
+import type { Learner } from '../types/Reports';
 
-const ModalLearnerDetails = ({ onClose, selectedLearner }) => {
-  if (!selectedLearner) return null;
+
+
+interface ModalLearnerDetailsProps {
+  onClose: () => void;
+  selectedLearner: Learner | null; // allow null
+}
+
+const ModalLearnerDetails: React.FC<ModalLearnerDetailsProps> = ({ onClose, selectedLearner }) => {
+  if (!selectedLearner) return null; // early return
 
   const { name, cohort, stats, deliverables } = selectedLearner;
 
-  // Determine status text and color
-  const getStatusDisplay = (status, lateDays = 0) => {
+  const getStatusDisplay = (status: string, lateDays: number) => {
     switch (status) {
       case 'On time':
         return <span className="text-green-600">On time</span>;
@@ -19,32 +26,26 @@ const ModalLearnerDetails = ({ onClose, selectedLearner }) => {
     }
   };
 
-  // Determine overall risk status
   const isAtRisk = stats.strikes >= 3 || stats.missed > 0;
   const statusText = isAtRisk ? (
-    <span className="text-red-600 font-semibold">
-       At Risk
-    </span>
+    <span className="text-red-600 font-semibold">🚨 At Risk</span>
   ) : (
     <span className="text-green-600">Good Standing</span>
   );
 
   return (
-    <div className="w-screen h-screen fixed top-0 left-0 grid place-items-center bg-black/60 transition duration-150 ease-in-out z-50">
-      <div className="bg-white p-6 rounded-xl shadow-2xl w-[500px] relative max-h-[90vh] overflow-y-auto">
-        {/* Close Button */}
+    <div className="w-screen h-screen fixed top-0 left-0 grid place-items-center bg-black/60 z-50">
+      <div className="bg-white p-6 rounded-xl shadow-2xl w-[500px] max-h-[90vh] overflow-y-auto relative">
         <button
-          className="absolute top-4 right-4 text-xl font-bold text-gray-500 hover:text-gray-700 transition"
+          className="absolute top-4 right-4 text-xl font-bold text-gray-500 hover:text-gray-700"
           onClick={onClose}
         >
           ×
         </button>
 
-        {/* Header */}
         <h2 className="text-xl font-bold mb-1">{name}</h2>
         <p className="text-sm text-gray-600 mb-4">{cohort}</p>
 
-        {/* Stats Row */}
         <div className="flex gap-4 text-sm mb-4 border-b pb-3">
           <span>Completed: <strong>{stats.done} / {deliverables.length}</strong></span>
           <span>Late: <strong>{stats.late}</strong></span>
@@ -52,12 +53,10 @@ const ModalLearnerDetails = ({ onClose, selectedLearner }) => {
           <span>Strikes: <strong>{stats.strikes}</strong></span>
         </div>
 
-        {/* Status */}
         <div className="mb-4">
           <strong>Status:</strong> {statusText}
         </div>
 
-        {/* Deliverables List */}
         <div className="space-y-4 mt-6">
           {deliverables.map((d, index) => (
             <div key={index} className="border-t pt-3 first:border-t-0">
@@ -66,13 +65,7 @@ const ModalLearnerDetails = ({ onClose, selectedLearner }) => {
                 <p className="text-sm text-gray-700">Score: {d.score}%</p>
               )}
               <p className="text-sm text-gray-600">
-                Submitted: {d.submittedDate ? (
-                  <>
-                    {d.submittedDate} ({getStatusDisplay(d.status, d.lateDays)})
-                  </>
-                ) : (
-                  getStatusDisplay(d.status)
-                )}
+                Submitted: {d.submittedDate} ({getStatusDisplay(d.status, d.lateDays)})
               </p>
             </div>
           ))}

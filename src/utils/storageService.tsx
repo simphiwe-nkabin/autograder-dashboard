@@ -1,4 +1,4 @@
-import type { Submission, AutogradeWorkerLog } from "../types/storageTypes";
+import type { Submission, AutogradeWorkerLog, MoodleComplianceRecord } from "../types/storageTypes";
 
 const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
 const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
@@ -161,9 +161,44 @@ export async function getAutogradeWorkerLogs(): Promise<AutogradeWorkerLog[]> {
     return data as AutogradeWorkerLog[];
 }
 
+// ─── Fetch Compliance Data from Supabase ────────────────────────
+
+const COMPLIANCE_BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
+const SUPABASE_API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
+
+
+export async function getComplianceData(): Promise<MoodleComplianceRecord[]> {
+  try {
+    const response = await fetch(COMPLIANCE_BASE_URL, {
+      method: 'GET',
+      headers: {
+        apiKey: SUPABASE_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch compliance data:', await response.text());
+      return [];
+    }
+
+    const data: MoodleComplianceRecord[] = await response.json();
+    
+    // Optional: filter out malformed records
+    return data.filter(record =>
+      record.groupname &&
+      record.userid &&
+      typeof record.activityname === 'string'
+    );
+  } catch (error) {
+    console.error('Error in getComplianceData:', error);
+    return [];
+  }
+}
 
 
 export default {
+    getComplianceData,
     getAllSubmissions,
     createBlockedSubmission,
     removeBlockedSubmission,

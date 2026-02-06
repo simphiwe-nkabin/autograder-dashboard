@@ -24,3 +24,23 @@ export interface CohortReport {
   learners: LearnerReport[];
 }
 
+export interface Deliverable {
+  title: string;
+  status: 'On time' | 'Late' | 'Missed' | 'Pending';
+  score?: number;
+  submittedDate: string;
+  lateDays: number;
+}
+
+export interface Learner {
+  id: string;
+  name: string;
+  cohort: string;
+  deliverables: Deliverable[];
+  stats: {
+    done: number;
+    late: number;
+    missed: number;
+    strikes: number;
+  };
+}
