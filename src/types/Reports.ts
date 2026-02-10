@@ -22,3 +22,16 @@ export interface Learner {
   deliverables: Deliverable[];
   stats: LearnerStats;
 }
+
+
+export interface MoodleRawRecord {
+	groupname: string;
+	userid: string;
+	firstname: string;
+	lastname: string;
+	activityname: string;
+	grade: string;
+	duedate: string;
+	submissiondate: string;
+	activitytype: string; 
+}

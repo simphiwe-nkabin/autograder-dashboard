@@ -1,20 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import ModalLearnerDetails from "./ModalLearnerDetails";
 import { getComplianceData } from "../utils/storageService";
-import type { Learner } from "../types/Reports";
+import type { Learner, MoodleRawRecord } from "../types/Reports";
 
-// Raw Data Type (normalized to strings)
-interface MoodleRawRecord {
-	groupname: string;
-	userid: string;
-	firstname: string;
-	lastname: string;
-	activityname: string;
-	grade: string;
-	duedate: string;
-	submissiondate: string;
-	activitytype: string; // ← Added
-}
+
 
 // Helper: Parse Timestamp Safely
 const parseTimestamp = (
