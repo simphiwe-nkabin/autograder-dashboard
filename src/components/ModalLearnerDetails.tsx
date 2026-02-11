@@ -77,11 +77,11 @@ const ModalLearnerDetails: React.FC<ModalLearnerDetailsProps> = ({
 										{ 'bg-gray-100 border-gray-500 text-gray-500': d.status == 'pending' },
 										{ 'bg-amber-100 border-amber-500 text-amber-500': d.status == 'late' }
 									)}>{d.status}</span>
-									<div className="text-sm text-gray-600 text-xs">
-										{(d.submittedDate && d.status == 'ontime') && <span className='text-green-500'>{`submitted ${moment(d.submittedDate).fromNow()}`}</span>}
-										{(d.status == 'missed' && d.dueDate) && <span className='text-red-500'>{`due ${moment(d.dueDate).fromNow()}`}</span>}
-										{(d.status == 'pending' && d.dueDate) && <span className='text-gray-500'>{`due ${moment(d.dueDate).fromNow()}`}</span>}
-										{(d.status == 'late' && d.dueDate && d.submittedDate) && <span className='text-yellow-500'>{`${moment(d.submittedDate).diff(moment(d.dueDate), 'days')} days late`}</span>}
+									<div className="text-sm text-gray-500 text-xs">
+										{(d.submittedDate && d.status == 'ontime') && <span>{`submitted ${moment(d.submittedDate).fromNow()}`}</span>}
+										{(d.status == 'missed' && d.dueDate) && <span>{`due ${moment(d.dueDate).fromNow()}`}</span>}
+										{(d.status == 'pending' && d.dueDate) && <span>{`due ${moment(d.dueDate).fromNow()}`}</span>}
+										{(d.status == 'late' && d.dueDate && d.submittedDate) && <span>{`${moment(d.submittedDate).diff(moment(d.dueDate), 'days')} days late`}</span>}
 									</div>
 								</div>
 								{d.score && (
