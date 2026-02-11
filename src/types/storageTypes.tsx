@@ -30,18 +30,17 @@ export interface AutogradeWorkerLog {
     cmid: number;
 }
 
-export interface MoodleComplianceRecord {
-
-  uid: string;
-  coursename: string;
-  groupname: string;
-  userid: string;
-  firstname: string;
-  lastname: string;
-  activitytype: string;
-  activityname: string;
-  grade: string;
-  duedate: string;
-  submissiondate: string;
-  submissionstatus: string; // even if unused
+export interface GradeRecordStorage {
+    uid: string;
+    coursename: string;
+    groupname: string;
+    userid: string;
+    firstname: string;
+    lastname: string;
+    activitytype: string;
+    activityname: string;
+    grade: string;
+    duedate: string | null;
+    submissiondate: string | null;
+    submissionstatus: 'ontime' | 'pending' | 'missed' | 'late'
 }

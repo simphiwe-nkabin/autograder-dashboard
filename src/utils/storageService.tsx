@@ -1,4 +1,5 @@
-import type { Submission, AutogradeWorkerLog, MoodleComplianceRecord } from "../types/storageTypes";
+import type { GradeRecord } from "../types/Reports";
+import type { Submission, AutogradeWorkerLog, GradeRecordStorage } from "../types/storageTypes";
 
 const BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/submissions`;
 const API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
@@ -21,9 +22,9 @@ async function getSubmission(submissionId: number): Promise<Submission | null> {
 async function upsertSubmission(submissionId: number, data: Partial<Pick<Submission, 'blocked' | 'comment'>>) {
     try {
         const existing = await getSubmission(submissionId);
-        
+
         if (existing) {
-      
+
             const response = await fetch(`${BASE_URL}?submission_id=eq.${submissionId}`, {
                 method: 'PATCH',
                 headers: { 'apiKey': API_KEY, 'Content-Type': 'application/json' },
@@ -34,11 +35,11 @@ async function upsertSubmission(submissionId: number, data: Partial<Pick<Submiss
                 throw new Error(`PATCH failed: ${response.status} ${await response.text()}`);
             }
         } else {
-        
+
             const payload = {
                 submission_id: submissionId,
-                blocked: data.blocked ?? false, 
-                comment: data.comment ?? null  
+                blocked: data.blocked ?? false,
+                comment: data.comment ?? null
             };
             const response = await fetch(BASE_URL, {
                 method: 'POST',
@@ -167,33 +168,44 @@ const COMPLIANCE_BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/grade_repo
 const SUPABASE_API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
 
 
-export async function getComplianceData(): Promise<MoodleComplianceRecord[]> {
-  try {
-    const response = await fetch(COMPLIANCE_BASE_URL, {
-      method: 'GET',
-      headers: {
-        apiKey: SUPABASE_API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
 
-    if (!response.ok) {
-      console.error('Failed to fetch compliance data:', await response.text());
-      return [];
+
+export async function getComplianceData(): Promise<GradeRecord[]> {
+    try {
+        const response = await fetch(COMPLIANCE_BASE_URL, {
+            method: 'GET',
+            headers: {
+                apiKey: SUPABASE_API_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Failed to fetch compliance data:', await response.text());
+            return [];
+        }
+
+        const data: GradeRecordStorage[] = await response.json();
+
+        // Optional: filter out malformed records
+        return data.map(record => ({
+            uid: record.uid || "",
+            coursename: record.coursename || "",
+            groupname: record.groupname || "",
+            userid: parseInt(record?.userid),
+            firstname: record.firstname || "",
+            lastname: record.lastname || "",
+            activitytype: record.activitytype || "",
+            activityname: record.activityname || "",
+            grade: record.grade ? parseFloat(record.grade) : null,
+            duedate: record.duedate ? new Date(parseInt(record.duedate, 10)) : null,
+            submissiondate: record.submissiondate ? new Date(parseInt(record.submissiondate, 10)) : null,
+            submissionstatus: record.submissionstatus
+        }));
+    } catch (error) {
+        console.error('Error in getComplianceData:', error);
+        return [];
     }
-
-    const data: MoodleComplianceRecord[] = await response.json();
-    
-    // Optional: filter out malformed records
-    return data.filter(record =>
-      record.groupname &&
-      record.userid &&
-      typeof record.activityname === 'string'
-    );
-  } catch (error) {
-    console.error('Error in getComplianceData:', error);
-    return [];
-  }
 }
 
 
@@ -205,7 +217,7 @@ export default {
     saveSubmissionComment,
     deleteSubmissionComment,
     toggleBlockedStatus,
-  
+
     getAllBlockedSubmissions,
     getSubmissionComments,
 

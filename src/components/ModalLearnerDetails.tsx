@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Learner } from '../types/Reports';
+import { clsx } from 'clsx';
 
 interface ModalLearnerDetailsProps {
 	onClose: () => void;
@@ -13,40 +14,6 @@ const ModalLearnerDetails: React.FC<ModalLearnerDetailsProps> = ({
 	if (!selectedLearner) return null;
 
 	const { name, cohort, stats, deliverables } = selectedLearner;
-
-	// Safe helper: handles undefined/null activityType
-	const formatActivityType = (type: string | undefined): string => {
-		if (!type) return "Unknown";
-		const t = type.toLowerCase().trim();
-		switch (t) {
-			case "quiz":
-				return "Quiz";
-			case "assign":
-				return "Assignment";
-			case "forum":
-				return "Forum/Discussion";
-			default:
-				// Capitalize first letter
-				return t.charAt(0).toUpperCase() + t.slice(1);
-		}
-	};
-
-	const getStatusDisplay = (status: string, lateDays: number) => {
-		switch (status) {
-			case "On time":
-				return <span className="text-green-600">On time</span>;
-			case "Late":
-				return (
-					<span className="text-red-600">
-						Late by {lateDays} day{lateDays !== 1 ? "s" : ""}
-					</span>
-				);
-			case "Missed":
-				return <span className="text-gray-500 italic">Not submitted</span>;
-			default:
-				return <span className="text-gray-500">{status}</span>;
-		}
-	};
 
 	const isAtRisk = stats.strikes >= 3 || stats.missed > 0;
 	const statusText = isAtRisk ? (
@@ -93,18 +60,26 @@ const ModalLearnerDetails: React.FC<ModalLearnerDetailsProps> = ({
 					{deliverables.map((d, index) => (
 						<div key={index} className="border-t pt-3 first:border-t-0">
 							<div className="flex justify-between items-start">
-								<h3 className="font-semibold">{d.title}</h3>
-								<span className="text-xs bg-gray-100 px-2 py-1 rounded">
-									{formatActivityType(d.activityType)}
+								<h3 className="font-semibold mb-2">{d.title}</h3>
+								<span className="text-xs bg-gray-100 px-2 py-1 rounded capitalize">
+									{d.activityType == "assign" ? "assignment" : d.activityType}
 								</span>
 							</div>
-							{d.score !== undefined && (
+							<div className='flex gap-2 items-center'>
+								<span className={clsx('border rounded-2xl py-0.5 px-1.5 text-xs',
+									{ 'bg-red-100 border-red-500 text-red-500': d.status == 'missed' },
+									{ 'bg-green-100 border-green-500 text-green-500': d.status == 'ontime' },
+									{ 'bg-gray-100 border-gray-500 text-gray-500': d.status == 'pending' },
+									{ 'bg-gray-100 border-gray-500 text-gray-500': d.status == 'pending' },
+									{ 'bg-amber-100 border-amber-500 text-amber-500': d.status == 'late' }
+								)}>{d.status}</span>
+								<p className="text-sm text-gray-600 mt-1">
+									{d.submittedDate && d.submittedDate.toLocaleDateString()}
+								</p>
+							</div>
+							{d.score && (
 								<p className="text-sm text-gray-700 mt-1">Score: {d.score}%</p>
 							)}
-							<p className="text-sm text-gray-600 mt-1">
-								Submitted: {d.submittedDate} (
-								{getStatusDisplay(d.status, d.lateDays)})
-							</p>
 						</div>
 					))}
 				</div>

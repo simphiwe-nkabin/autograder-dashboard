@@ -1,116 +1,20 @@
 import { useState, useEffect, useMemo } from "react";
 import ModalLearnerDetails from "./ModalLearnerDetails";
 import { getComplianceData } from "../utils/storageService";
-import type { Learner, MoodleRawRecord } from "../types/Reports";
-
-
-
-// Helper: Parse Timestamp Safely
-const parseTimestamp = (
-	value: string | number | null | undefined,
-): number | null => {
-	if (
-		value == null ||
-		value === "" ||
-		value === "0" ||
-		value === "null" ||
-		value === "undefined"
-	) {
-		return null;
-	}
-	const num = typeof value === "string" ? parseInt(value, 10) : value;
-	if (num === 0) return null;
-	return isNaN(num) ? null : num;
-};
+import type { GradeRecord, Learner } from "../types/Reports";
 
 //Main Component
 const ReportsTable = () => {
-	const [moodleData, setMoodleData] = useState<MoodleRawRecord[]>([]);
+	const [moodleData, setMoodleData] = useState<GradeRecord[]>([]);
 	const [selectedCohortId, setSelectedCohortId] = useState<string>("");
 	const [showLearnerModal, setShowLearnerModal] = useState<boolean>(false);
 	const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
 
 	//EFFECT: Fetch and Normalize Data
 	useEffect(() => {
-		console.log("🔍 ReportsTable: Starting fetch from /grade_reports...");
-
 		getComplianceData()
-			.then((data) => {
-				console.log(" ReportsTable: Received raw", data.length, "records");
-				if (data.length > 0) {
-					console.log(" Sample raw record:", data[0]);
-				}
-
-				//  DEBUG: Log activity types
-				const activityTypes = [
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					...new Set(data.map((item: any) => item.activitytype)),
-				];
-				console.log("Activity types in ", activityTypes);
-
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const normalizedData: MoodleRawRecord[] = data.map((item: any) => ({
-					groupname: String(item.groupname ?? item.cohort ?? "").trim(),
-					userid: String(item.userid ?? item.user_id ?? item.id ?? "").trim(),
-					firstname: String(
-						item.firstname ??
-							item.first_name ??
-							(item.fullname ? item.fullname.split(" ")[0] : "") ??
-							"",
-					).trim(),
-					lastname: String(
-						item.lastname ??
-							item.last_name ??
-							(item.fullname
-								? item.fullname.split(" ").slice(1).join(" ")
-								: "") ??
-							"",
-					).trim(),
-					activityname: String(
-						item.activityname ??
-							item.name ??
-							item.title ??
-							item.quiz_name ??
-							"",
-					).trim(),
-					grade: String(item.grade ?? item.score ?? "0.00").trim(),
-					duedate: String(
-						item.duedate ??
-							item.due_date ??
-							item.deadline ??
-							item.timeclose ??
-							"",
-					).trim(),
-					submissiondate: String(
-						item.submissiondate ??
-							item.submitted_at ??
-							item.timefinish ??
-							item.timemodified ??
-							"",
-					).trim(),
-					activitytype: String(item.activitytype ?? "unknown").trim(), // ← Include
-				}));
-
-				const validData = normalizedData.filter(
-					(item) =>
-						item.groupname !== "" &&
-						item.userid !== "" &&
-						item.activityname !== "",
-				);
-
-				console.log(
-					"ReportsTable: Valid records after normalization:",
-					validData.length,
-				);
-				if (validData.length > 0) {
-					console.log(" Sample normalized record:", validData[0]);
-				}
-				setMoodleData(validData);
-			})
-			.catch((err) => {
-				console.error("ReportsTable: Failed to load compliance ", err);
-				setMoodleData([]);
-			});
+			.then((data) => setMoodleData(data))
+			.catch((err) => console.error("Failed to load compliance data ", err));
 	}, []);
 
 	//  MEMO: Extract Cohorts
@@ -165,7 +69,7 @@ const ReportsTable = () => {
 					(item) => `${item.userid}|${item.firstname}|${item.lastname}` === key,
 				);
 
-				const deliverables: { title: string; status: "On time" | "Late" | "Missed" | "Pending"; score: number | undefined; submittedDate: string; lateDays: number; activityType: string; }[] = [];
+				const deliverables: { title: string; status: "ontime" | "late" | "missed" | "pending"; score: number | null; submittedDate: Date | null; activityType: string; }[] = [];
 				let done = 0,
 					late = 0,
 					missed = 0,
@@ -173,52 +77,29 @@ const ReportsTable = () => {
 
 				deliverableTitles.forEach((title) => {
 					const record = rawRecords.find((r) => r.activityname === title);
-					const duedate = parseTimestamp(record?.duedate);
-					const submissiondate = parseTimestamp(record?.submissiondate);
+					const submittedDate = record?.submissiondate || null;
+					const status = record?.submissionstatus || "pending"
 
-					let status: "On time" | "Late" | "Missed" | "Pending" = "Pending";
-					let submittedDateStr = "—";
-					let lateDays = 0;
-
-					if (!record || duedate == null) {
-						status = "Pending";
-						if (submissiondate) {
-							submittedDateStr = new Date(
-								submissiondate * 1000,
-							).toLocaleDateString();
-						}
-					} else if (submissiondate == null) {
-						status = "Missed";
+					if (status == 'missed') {
 						missed++;
 						strikes++;
-					} else {
-						const due = new Date(duedate * 1000);
-						const submitted = new Date(submissiondate * 1000);
-						submittedDateStr = submitted.toLocaleDateString();
-
-						if (submitted <= due) {
-							status = "On time";
-							done++;
-						} else {
-							status = "Late";
-							late++;
-							strikes++;
-							const diffTime = submitted.getTime() - due.getTime();
-							lateDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-						}
+					}
+					if (status == 'ontime') {
+						done++;
+					}
+					if (status == 'late') {
+						late++;
+						strikes++;
 					}
 
-					const score = record?.grade ? parseFloat(record.grade) : undefined;
-					const formattedScore =
-						score != null && !isNaN(score) ? Math.round(score) : undefined;
+					const score = record?.grade || null;
 
 					// Pass activityType to modal
 					deliverables.push({
 						title,
 						status,
-						score: formattedScore,
-						submittedDate: submittedDateStr,
-						lateDays,
+						score,
+						submittedDate,
 						activityType: record?.activitytype ?? "unknown",
 					});
 				});
@@ -260,7 +141,7 @@ const ReportsTable = () => {
 			const row = [learner.name];
 			learner.deliverables.forEach((d) => {
 				let cell = d.status;
-				if (d.score !== undefined) cell += ` (${d.score}%)`;
+				if (d.score) cell += ` (${d.score}%)`;
 				row.push(cell);
 			});
 			row.push(
