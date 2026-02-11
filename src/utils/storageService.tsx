@@ -198,8 +198,8 @@ export async function getComplianceData(): Promise<GradeRecord[]> {
             activitytype: record.activitytype || "",
             activityname: record.activityname || "",
             grade: record.grade ? parseFloat(record.grade) : null,
-            duedate: record.duedate ? new Date(parseInt(record.duedate, 10)) : null,
-            submissiondate: record.submissiondate ? new Date(parseInt(record.submissiondate, 10)) : null,
+            duedate: record.duedate ? new Date(parseInt(record.duedate, 10) * 1000) : null,
+            submissiondate: record.submissiondate ? new Date(parseInt(record.submissiondate, 10) * 1000) : null,
             submissionstatus: record.submissionstatus
         }));
     } catch (error) {
