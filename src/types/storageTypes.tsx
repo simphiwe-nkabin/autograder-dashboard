@@ -29,3 +29,18 @@ export interface AutogradeWorkerLog {
     autograde_status_details: string;
     cmid: number;
 }
+
+export interface GradeRecordStorage {
+    uid: string;
+    coursename: string;
+    groupname: string;
+    userid: string;
+    firstname: string;
+    lastname: string;
+    activitytype: string;
+    activityname: string;
+    grade: string;
+    duedate: string | null;
+    submissiondate: string | null;
+    submissionstatus: 'ontime' | 'pending' | 'missed' | 'late'
+}
