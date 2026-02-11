@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import ModalLearnerDetails from "./ModalLearnerDetails";
 import { getComplianceData } from "../utils/storageService";
-import type { GradeRecord, Learner } from "../types/Reports";
+import type { Deliverable, GradeRecord, Learner } from "../types/Reports";
 
 //Main Component
 const ReportsTable = () => {
@@ -69,7 +69,7 @@ const ReportsTable = () => {
 					(item) => `${item.userid}|${item.firstname}|${item.lastname}` === key,
 				);
 
-				const deliverables: { title: string; status: "ontime" | "late" | "missed" | "pending"; score: number | null; submittedDate: Date | null; activityType: string; }[] = [];
+				const deliverables: Deliverable[] = [];
 				let done = 0,
 					late = 0,
 					missed = 0,
@@ -77,17 +77,15 @@ const ReportsTable = () => {
 
 				deliverableTitles.forEach((title) => {
 					const record = rawRecords.find((r) => r.activityname === title);
-					const submittedDate = record?.submissiondate || null;
-					const status = record?.submissionstatus || "pending"
 
-					if (status == 'missed') {
+					if (record?.submissionstatus == 'missed') {
 						missed++;
 						strikes++;
 					}
-					if (status == 'ontime') {
+					if (record?.submissionstatus == 'ontime') {
 						done++;
 					}
-					if (status == 'late') {
+					if (record?.submissionstatus == 'late') {
 						late++;
 						strikes++;
 					}
@@ -97,10 +95,11 @@ const ReportsTable = () => {
 					// Pass activityType to modal
 					deliverables.push({
 						title,
-						status,
+						status: record?.submissionstatus || "pending",
 						score,
-						submittedDate,
+						submittedDate: record?.submissiondate || null,
 						activityType: record?.activitytype ?? "unknown",
+						dueDate: record?.duedate || null
 					});
 				});
 

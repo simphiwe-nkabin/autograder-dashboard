@@ -5,6 +5,7 @@ export interface Deliverable {
   status: 'ontime' | 'late' | 'missed' | 'pending';
   score: number | null;
   submittedDate: Date | null;
+  dueDate: Date | null;
 }
 
 export interface LearnerStats {
