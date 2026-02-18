@@ -123,38 +123,49 @@ const ReportsTable = () => {
 		setShowLearnerModal(true);
 	};
 
+	// Helper: escape a value for CSV (RFC 4180 compliant)
+	const escapeCSVCell = (value: string): string => {
+		// Wrap in quotes and escape any internal double-quotes by doubling them
+		const escaped = value.replace(/"/g, '""');
+		return `"${escaped}"`;
+	};
+
 	const handleExportCSV = () => {
 		if (!selectedCohort || learners.length === 0) return;
 
-		const headers = ["Learner"];
+		// Build headers: Learner | [each deliverable title] | summary columns
 		const allDeliverables = learners[0]?.deliverables || [];
-		allDeliverables.forEach((d) => headers.push(d.title));
-		headers.push(
+		const headers = [
+			"Learner",
+			...allDeliverables.map((d) => d.title),
 			"Deliverables Done",
 			"Late Count",
 			"Missed Count",
 			"Total Strikes",
-		);
+		];
 
 		const rows = learners.map((learner) => {
-			const row = [learner.name];
-			learner.deliverables.forEach((d) => {
+			// One cell per deliverable (same order as headers)
+			const deliverableCells = learner.deliverables.map((d) => {
 				let cell = d.status;
-				if (d.score) cell += ` (${d.score}%)`;
-				row.push(cell);
+				if (d.score !== null) cell += ` (${d.score}%)`;
+				return cell;
 			});
-			row.push(
+
+			// Summary cells — always 4, always at the end
+			const summaryCells = [
 				`${learner.stats.done}/${allDeliverables.length}`,
-				learner.stats.late.toString(),
-				learner.stats.missed.toString(),
-				learner.stats.strikes.toString(),
-			);
-			return row;
+				String(learner.stats.late),
+				String(learner.stats.missed),
+				String(learner.stats.strikes),
+			];
+
+			return [learner.name, ...deliverableCells, ...summaryCells];
 		});
 
 		const csvLines = [
-			headers.join(","),
-			...rows.map((r) => r.map((cell) => `"${cell}"`).join(",")),
+			headers.map(escapeCSVCell).join(","),
+			...rows.map((row) => row.map(escapeCSVCell).join(",")),
 		];
 		const csvContent = csvLines.join("\n");
 
@@ -166,6 +177,7 @@ const ReportsTable = () => {
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
 	};
 
 	// RENDER
