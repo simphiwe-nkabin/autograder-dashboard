@@ -168,15 +168,40 @@ const COMPLIANCE_BASE_URL = `${import.meta.env.VITE_SUPABASE_BASEURL}/grade_repo
 const SUPABASE_API_KEY = import.meta.env.VITE_SUPABASE_APIKEY;
 
 
+/**
+ * Parses the 'Content-Range' header from an HTTP response to extract 
+ * pagination metadata.
+ * 
+ * @param {Response} httpResponse - The Fetch API Response object.
+ * @returns {{Object}} An object containing the parsed range values.
+ * @returns {number|null} .totalCount - The total size of the dataset (after the '/').
+ * @returns {number|null} .start - The starting index of the current range.
+ * @returns {number|null} .end - The ending index of the current range.
+ */
+function getPaginationFromHeader(httpResponse: Response): { totalCount: number | null, start: number | null, end: number | null } {
+    const contentRange = httpResponse.headers.get('content-range') || '';
+    if (!contentRange) return { totalCount: null, start: null, end: null };
+
+    const totalCount = parseInt(contentRange.substring(contentRange.indexOf('/') + 1))
+    const [startIndex, endIndex] = contentRange.substring(0, contentRange.indexOf('/')).split('-')
+
+    return {
+        totalCount: totalCount || null,
+        start: parseInt(startIndex) || null,
+        end: parseInt(endIndex) || null
+    }
+}
 
 
-export async function getComplianceData(): Promise<GradeRecord[]> {
+export async function getComplianceData(range: number[] = [0, 999]): Promise<GradeRecord[]> {
     try {
         const response = await fetch(COMPLIANCE_BASE_URL, {
             method: 'GET',
             headers: {
                 apiKey: SUPABASE_API_KEY,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Range': `${range[0]}-${range[1]}`,
+                'Prefer': 'count=planned'
             }
         });
 
@@ -187,8 +212,7 @@ export async function getComplianceData(): Promise<GradeRecord[]> {
 
         const data: GradeRecordStorage[] = await response.json();
 
-        // Optional: filter out malformed records
-        return data.map(record => ({
+        const mapped = data.map(record => ({
             uid: record.uid || "",
             coursename: record.coursename || "",
             groupname: record.groupname || "",
@@ -202,6 +226,15 @@ export async function getComplianceData(): Promise<GradeRecord[]> {
             submissiondate: record.submissiondate ? new Date(parseInt(record.submissiondate, 10) * 1000) : null,
             submissionstatus: record.submissionstatus
         }));
+
+        // Fetch and append next range of paginated data
+        const { totalCount, end } = getPaginationFromHeader(response)
+        if ((totalCount && end) && (totalCount > end + 1)) {
+            const nextRangeData = await getComplianceData([end + 1, end + 999])
+            return [...mapped, ...nextRangeData]
+        }
+
+        return mapped;
     } catch (error) {
         console.error('Error in getComplianceData:', error);
         return [];
