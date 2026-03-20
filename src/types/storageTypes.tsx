@@ -18,7 +18,6 @@ export interface AutogradeWorkerLog {
     submission_id: number;
     user_id: number;
     submission_status: string;
-    course_id: number;
     assignment_id: number;
     assignment_name: string;
     assignment_intro: string;
@@ -28,6 +27,10 @@ export interface AutogradeWorkerLog {
     autograde_status: string;
     autograde_status_details: string;
     cmid: number;
+    status: string;
+    details: string;
+    attempt: number;
+    data: any;
 }
 
 export interface GradeRecordStorage {
