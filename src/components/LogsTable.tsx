@@ -5,16 +5,14 @@ import storageService from "../utils/storageService";
 // Log row type
 type LogRow = {
   id: number;
-  created_at: string;
-  submitted_at: string | null;
-  course_id: number;
-  assignment_id: number;
-  user_id: number;
-  assignment_name: string;
-  submission_status: string;
-  autograde_status: string;
-  autograde_status_details: string;
-  cmid: number; // added for grading URL
+  createdAt: string;
+  submittedAt: Date | string | null;
+  userId: number;
+  assignment: string;
+  status: string;
+  details: string;
+  attempts: number;
+  submisionUrl: string;
 };
 
 // Unique filter options
@@ -23,7 +21,7 @@ function uniqueOptions(field: keyof LogRow, rows: LogRow[]) {
 }
 
 // Time ago using moment.js
-function timeAgo(dateString: string | null): string {
+function timeAgo(dateString: string | null | Date): string {
   if (!dateString) return "—";
   return moment(dateString).fromNow();
 }
@@ -31,9 +29,8 @@ function timeAgo(dateString: string | null): string {
 export default function LogsTable() {
   // UI state
   const [filters, setFilters] = useState({
-    course_id: "",
-    assignment_name: "",
-    autograde_status: "",
+    assignment: "",
+    status: "",
   });
 
   const [rows, setRows] = useState<LogRow[]>([]);
@@ -51,23 +48,23 @@ export default function LogsTable() {
       setError(null);
 
       const data = await storageService.getAutogradeWorkerLogs();
+      console.log(data);
+      
 
       const mapped: LogRow[] = data.map((item) => ({
         id: item.id,
-        created_at: item.created_at,
-        submitted_at: item.submitted_at,
-        course_id: item.course_id,
-        assignment_id: item.assignment_id,
-        user_id: item.user_id,
-        assignment_name: item.assignment_name,
-        submission_status: item.submission_status,
-        autograde_status: item.autograde_status,
-        autograde_status_details: item.autograde_status_details,
-        cmid: item.cmid, 
+        createdAt: item.created_at,
+        submittedAt: item?.data?.timecreated ? new Date(Number(item?.data?.timecreated) * 1000) : item.submitted_at,
+        userId: item?.data?.userid || item.user_id,
+        assignment: item?.data?.assignmentname || item.assignment_name,
+        status: item.status || item.autograde_status,
+        details: item.details || item.autograde_status_details,
+        attempts: item.attempt,
+        submisionUrl: `https://moodle.shaper.co.za/mod/assign/view.php?id=${item?.data?.cmid || item.cmid}&action=grader&userid=${item?.data?.userid || item.user_id}`
       }));
 
       mapped.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
       setRows(mapped);
@@ -85,12 +82,11 @@ export default function LogsTable() {
 
   // Filtering
   const filteredData = rows.filter((row) => {
-    const c = !filters.course_id || String(row.course_id) === filters.course_id;
     const a =
-      !filters.assignment_name || row.assignment_name === filters.assignment_name;
+      !filters.assignment || row.assignment === filters.assignment;
     const s =
-      !filters.autograde_status || row.autograde_status === filters.autograde_status;
-    return c && a && s;
+      !filters.status || row.status === filters.status;
+    return a && s;
   });
 
   // Pagination
@@ -99,9 +95,8 @@ export default function LogsTable() {
   const startIndex = (safePage - 1) * pageSize;
   const pageData = filteredData.slice(startIndex, startIndex + pageSize);
 
-  const courseOptions = uniqueOptions("course_id", rows);
-  const assignmentOptions = uniqueOptions("assignment_name", rows);
-  const statusOptions = uniqueOptions("autograde_status", rows);
+  const assignmentOptions = uniqueOptions("assignment", rows);
+  const statusOptions = uniqueOptions("status", rows);
 
   return (
     <div className="p-4">
@@ -119,23 +114,9 @@ export default function LogsTable() {
       <div className="flex gap-4 mb-4">
         <select
           className="border p-2"
-          value={filters.course_id}
+          value={filters.assignment}
           onChange={(e) => {
-            setFilters((p) => ({ ...p, course_id: e.target.value }));
-            setPage(1);
-          }}
-        >
-          <option value="">All Courses</option>
-          {courseOptions.map((v) => (
-            <option key={v}>{v}</option>
-          ))}
-        </select>
-
-        <select
-          className="border p-2"
-          value={filters.assignment_name}
-          onChange={(e) => {
-            setFilters((p) => ({ ...p, assignment_name: e.target.value }));
+            setFilters((p) => ({ ...p, assignment: e.target.value }));
             setPage(1);
           }}
         >
@@ -147,9 +128,9 @@ export default function LogsTable() {
 
         <select
           className="border p-2"
-          value={filters.autograde_status}
+          value={filters.status}
           onChange={(e) => {
-            setFilters((p) => ({ ...p, autograde_status: e.target.value }));
+            setFilters((p) => ({ ...p, status: e.target.value }));
             setPage(1);
           }}
         >
@@ -166,13 +147,12 @@ export default function LogsTable() {
           <tr className="border-b bg-gray-100">
             <th className="p-2 text-left">Timestamp</th>
             <th className="p-2 text-left">Submitted</th>
-            <th className="p-2 text-left">Course</th>
             <th className="p-2 text-left">Assignment</th>
             <th className="p-2 text-left">Learner</th>
-            <th className="p-2 text-left">Submission Status</th>
-            <th className="p-2 text-left">Autograde Status</th>
+            <th className="p-2 text-left">Status</th>
+            <th className="p-2 w-25 text-left">Attempts</th>
             <th className="p-2 w-64 text-left">Details</th>
-            <th className="p-2 w-24 text-left">Action</th>
+            <th className="p-2 w-42 text-left">Action</th>
           </tr>
         </thead>
 
@@ -196,32 +176,31 @@ export default function LogsTable() {
           {!isLoading &&
             !error &&
             pageData.map((row) => {
-              const viewUrl = `https://moodle.shaper.co.za/mod/assign/view.php?id=${row.cmid}&action=grader&userid=${row.user_id}`;
+              const viewUrl = row.submisionUrl;
 
               return (
                 <tr key={row.id} className="border-b">
                   <td className="p-2">
-                    {moment(row.created_at).format("YYYY-MM-DD HH:mm")}
+                    {moment(row.createdAt).format("YYYY-MM-DD HH:mm")}
                   </td>
-                  <td className="p-2">{timeAgo(row.submitted_at)}</td>
-                  <td className="p-2">{row.course_id}</td>
-                  <td className="p-2">{row.assignment_name}</td>
-                  <td className="p-2">{row.user_id}</td>
-                  <td className="p-2 capitalize">{row.submission_status}</td>
-                  <td className="p-2 capitalize">{row.autograde_status}</td>
+                  <td className="p-2">{timeAgo(row.submittedAt)}</td>
+                  <td title={row.assignment} className="p-2 overflow-hidden whitespace-nowrap text-ellipsis">{row.assignment}</td>
+                  <td className="p-2">{row.userId}</td>
+                  <td className="p-2 capitalize">{row.status}</td>
+                  <td className="p-2 capitalize">{row.attempts}</td>
 
                   {/* Details (2-line clamp) */}
-                  <td className="p-2 w-64">
+                  <td className="p-2 w-64" title={row.details}>
                     <button
-                      onClick={() => setSelectedError(row.autograde_status_details)}
-                      className="text-left w-full text-blue-600 hover:underline whitespace-normal overflow-hidden text-ellipsis"
+                      onClick={() => setSelectedError(row.details)}
+                      className="text-left w-full text-blue-600 hover:underline whitespace-nowrap overflow-hidden text-ellipsis"
                       style={{
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical",
                       }}
                     >
-                      {row.autograde_status_details}
+                      {row.details}
                     </button>
                   </td>
 
