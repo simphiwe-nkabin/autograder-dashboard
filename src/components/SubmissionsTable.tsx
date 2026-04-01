@@ -12,9 +12,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 type RowItemType = {
     submissionId: number
     course: string,
-    assignment: string,
+    activity: string,
     learner: string | number,
-    status: string,
     blocked: boolean,
     comment: string,
     action: string,
@@ -44,34 +43,28 @@ export default function SubmissionTable() {
             cellStyle: { color: "#0084d1", cursor: "pointer" }
         },
         {
-            field: 'assignment',
+            field: 'activity',
             cellStyle: { color: "#0084d1", cursor: "pointer" },
             flex: 1
         },
         {
             field: 'type',
-            width: 150,
+            width: 100,
             resizable: false,
             flex: 0
         },
         {
             field: 'learner',
-            width: 100,
-            resizable: false,
+            width: 150,
+            resizable: true,
             flex: 0
         },
         {
             field: 'submitted',
-            width: 200,
+            width: 150,
             resizable: false,
             flex: 0,
             valueFormatter: (param) => moment(param.value).fromNow()
-        },
-        {
-            field: 'status',
-            width: 100,
-            resizable: false,
-            flex: 0
         },
         {
             field: 'blocked',
@@ -89,7 +82,7 @@ export default function SubmissionTable() {
         },
         {
             field: 'action',
-            width: 150,
+            width: 100,
             resizable: false,
             flex: 0,
             cellStyle: { color: "#0084d1", cursor: "pointer" },
@@ -128,10 +121,9 @@ export default function SubmissionTable() {
                 return {
                     submissionId: numericId,
                     course: submission.coursename,
-                    assignment: submission.activityname,
+                    activity: submission.activityname,
                     learner: submission.username,
                     submitted: new Date(submission.timemodified * 1000),
-                    status: 'Needs Grading',
                     blocked: localData?.blocked || false,
                     comment: localData?.comment || "",
                     action: 'Grade',
@@ -259,7 +251,7 @@ export default function SubmissionTable() {
 
                         if (column.colId == 'action')
                             window.open(data.gradingUrl, "_blank");
-                        if (column.colId == 'assignment')
+                        if (column.colId == 'activity')
                             window.open(data.moduleUrl, "_blank");
                         if (column.colId == 'course')
                             window.open(data.courseUrl, "_blank");
