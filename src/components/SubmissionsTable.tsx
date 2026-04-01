@@ -13,7 +13,7 @@ type RowItemType = {
     submissionId: number
     course: string,
     assignment: string,
-    learner: number,
+    learner: string | number,
     status: string,
     blocked: boolean,
     comment: string,
@@ -106,41 +106,39 @@ export default function SubmissionTable() {
         setLoading(true);
         setLoadingValue(0);
         try {
-            // 1. Fetch all Moodle submissions and add the 'type' property
-            setloadingInfo('fetching assignments')
-            const moodleAssignments = (await moodleService.getAssignmentSubmissions()).map(s => ({ ...s, type: 'assignment' }));
+            // 1. Fetch all ungraded Moodle submissions
+            setloadingInfo('fetching ungraded submissions')
+            const allMoodleSubmissions = await moodleService.getUngradedSubmissions();
             setLoadingValue(1)
-
-            setloadingInfo('fetching quizzes')
-            const moodleQuizzes = (await moodleService.getQuizSubmissions()).map(s => ({ ...s, type: 'quiz' }));
-            setLoadingValue(2)
-            const allMoodleSubmissions = [...moodleAssignments, ...moodleQuizzes];
 
             // 2. Fetch all submission metadata (blocked status, comments) from our DB in one call
             setloadingInfo('fetching metadata')
             const localSubmissions = await storageService.getAllSubmissions();
-            setLoadingValue(3)
+            setLoadingValue(2)
 
             // 3. Create a lookup map for efficient access to local data
             const localSubmissionsMap = new Map(localSubmissions.map(s => [s.submission_id, s]));
 
             // 4. Map Moodle data to rows, enriching with local data
             const submissionRows: RowItemType[] = allMoodleSubmissions.map((submission) => {
-                const localData = localSubmissionsMap.get(submission.id);
+                // Parse the numeric ID out of strings like "a240" or "q123" to match Supabase's `submission_id` integer expectation
+                const numericId = parseInt(submission.id.substring(1), 10);
+                const localData = localSubmissionsMap.get(numericId);
+                const MOODLE_BASE = "https://moodle.shaper.co.za";
                 return {
-                    submissionId: submission.id,
-                    course: submission.courseName,
-                    assignment: submission.submissionName,
-                    learner: submission.userId,
-                    submitted: new Date(submission.submittedAt),
-                    status: submission.status,
+                    submissionId: numericId,
+                    course: submission.coursename,
+                    assignment: submission.activityname,
+                    learner: submission.username,
+                    submitted: new Date(submission.timemodified * 1000),
+                    status: 'Needs Grading',
                     blocked: localData?.blocked || false,
                     comment: localData?.comment || "",
                     action: 'Grade',
-                    type: submission.type as 'assignment' | 'quiz',
-                    courseUrl: submission.courseUrl,
-                    moduleUrl: submission.moduleUrl,
-                    gradingUrl: submission.gradingUrl,
+                    type: submission.activitytype as 'assignment' | 'quiz',
+                    courseUrl: MOODLE_BASE + submission.coursepath,
+                    moduleUrl: MOODLE_BASE + submission.activitypath,
+                    gradingUrl: MOODLE_BASE + submission.gradepath,
                 };
             });
 
@@ -149,6 +147,7 @@ export default function SubmissionTable() {
             setCourses(uniqueCourses);
             setRowData(submissionRows);
         } catch (error) {
+            console.error("Failed to load records", error);
         } finally {
             setTimeout(() => {
                 setLoading(false);
