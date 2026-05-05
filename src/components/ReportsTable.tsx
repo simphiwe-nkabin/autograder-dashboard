@@ -1,18 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
 import ModalLearnerDetails from "./ModalLearnerDetails";
-import { getComplianceData } from "../utils/storageService";
-import type { Deliverable, GradeRecord, Learner } from "../types/Reports";
+import moodleService from "../utils/moodleService";
+import type { Deliverable, ActivityReportType, Learner } from "../types/Reports";
 
 //Main Component
 const ReportsTable = () => {
-	const [moodleData, setMoodleData] = useState<GradeRecord[]>([]);
+	const [moodleData, setMoodleData] = useState<ActivityReportType[]>([]);
 	const [selectedCohortId, setSelectedCohortId] = useState<string>("");
 	const [showLearnerModal, setShowLearnerModal] = useState<boolean>(false);
 	const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
 
 	//EFFECT: Fetch and Normalize Data
 	useEffect(() => {
-		getComplianceData()
+		moodleService.getActivityReports()
 			.then((data) => setMoodleData(data))
 			.catch((err) => console.error("Failed to load compliance data ", err));
 	}, []);

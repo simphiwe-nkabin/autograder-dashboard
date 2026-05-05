@@ -37,8 +37,8 @@ export interface MoodleRawRecord {
   submissionstatus: 'ontime' | 'pending' | 'missed' | 'late'
 }
 
-export type GradeRecord = {
-  uid: string;
+export type ActivityReportType = {
+  id: string;
   coursename: string;
   groupname: string;
   userid: number;
